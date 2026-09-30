@@ -1,0 +1,42 @@
+# Infraestructura de la Red Social Distribuida
+# Uso:  docker compose up -d        (levanta Neo4j + almacenamiento S3)
+# Más adelante se agregan aquí los servicios "backend" y "frontend".
+name: red-social
+
+services:
+  neo4j:
+    image: neo4j:5-community
+    container_name: redsocial-neo4j
+    restart: unless-stopped
+    ports:
+      - "7474:7474" # Neo4j Browser (HTTP) -> http://localhost:7474
+      - "7687:7687" # Bolt (lo usa el driver del backend)
+    environment:
+      NEO4J_AUTH: neo4j/${NEO4J_PASSWORD:?Define NEO4J_PASSWORD en el archivo .env}
+    volumes:
+      - neo4j_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "cypher-shell -u neo4j -p '${NEO4J_PASSWORD}' 'RETURN 1' || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 30s
+
+  # Almacenamiento compatible con S3 (reemplaza a MinIO, que fue archivado en 2026)
+  rustfs:
+    image: rustfs/rustfs:latest
+    container_name: redsocial-rustfs
+    restart: unless-stopped
+    ports:
+      - "9000:9000" # API S3       -> http://localhost:9000
+      - "9001:9001" # Consola web  -> http://localhost:9001
+    environment:
+      RUSTFS_ACCESS_KEY: ${S3_ACCESS_KEY:?Define S3_ACCESS_KEY en el archivo .env}
+      RUSTFS_SECRET_KEY: ${S3_SECRET_KEY:?Define S3_SECRET_KEY en el archivo .env}
+      RUSTFS_CONSOLE_ENABLE: "true"
+    volumes:
+      - rustfs_data:/data
+
+volumes:
+  neo4j_data:
+  rustfs_data:
