@@ -1,9 +1,9 @@
 /* ===== Diseno de Feed y Publicaciones (Persona B) ===== */
 :root {
-  --rs-primario: #2563eb;
-  --rs-primario-oscuro: #1d4ed8;
-  --rs-primario-suave: #eff6ff;
-  --rs-secundario: #0d9488;
+  --rs-primario: #6366f1;
+  --rs-primario-oscuro: #4f46e5;
+  --rs-primario-suave: #eef2ff;
+  --rs-secundario: #06b6d4;
   --rs-acento: #f43f5e;
   --rs-exito: #16a34a;
   --rs-aviso: #d97706;
@@ -43,11 +43,11 @@
 .rs-boton:active:not(:disabled) { transform: scale(0.97); }
 .rs-boton:disabled { opacity: 0.55; cursor: not-allowed; }
 .rs-boton--primario { background: var(--rs-primario); color: #fff; }
-.rs-boton--primario:hover:not(:disabled) { background: var(--rs-primario-oscuro); box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35); }
+.rs-boton--primario:hover:not(:disabled) { background: var(--rs-primario-oscuro); box-shadow: 0 2px 8px rgba(99, 102, 241, 0.35); }
 .rs-boton--fantasma { background: transparent; color: var(--rs-texto-suave); border-color: var(--rs-borde); }
 .rs-boton--fantasma:hover:not(:disabled) { background: #f8fafc; color: var(--rs-texto); }
 .rs-boton:focus-visible, .rs-reaccion:focus-visible, .rs-composer-abrir:focus-visible {
-  outline: 3px solid rgba(37, 99, 235, 0.4); outline-offset: 2px;
+  outline: 3px solid rgba(99, 102, 241, 0.4); outline-offset: 2px;
 }
 
 /* Avatar */
@@ -64,13 +64,13 @@
   padding: 0.5rem 1rem 0.5rem 0.5rem; font: inherit; color: var(--rs-texto-suave);
   cursor: pointer; text-align: left; transition: background-color 0.15s, border-color 0.15s;
 }
-.rs-composer-abrir:hover { background: var(--rs-primario-suave); border-color: #bfdbfe; }
+.rs-composer-abrir:hover { background: var(--rs-primario-suave); border-color: #c7d2fe; }
 .rs-composer-cabecera { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; font-weight: 600; }
 .rs-composer-texto {
   width: 100%; min-height: 110px; resize: vertical; border: 1px solid var(--rs-borde);
   border-radius: 10px; padding: 0.75rem; font: inherit; color: var(--rs-texto);
 }
-.rs-composer-texto:focus { outline: none; border-color: var(--rs-primario); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15); }
+.rs-composer-texto:focus { outline: none; border-color: var(--rs-primario); box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15); }
 .rs-composer-vista { position: relative; margin-top: 0.75rem; }
 .rs-composer-vista img { width: 100%; max-height: 320px; object-fit: cover; border-radius: 10px; display: block; }
 .rs-composer-quitar {

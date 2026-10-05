@@ -1,0 +1,51 @@
+:root { --ui-grad: linear-gradient(135deg, #6366f1, #06b6d4); }
+body { font-family: Inter, system-ui, -apple-system, 'Segoe UI', sans-serif; }
+
+/* Autenticacion */
+.ui-auth { min-height: 100vh; display: grid; place-items: center; padding: 1.5rem 1rem;
+  background: radial-gradient(circle at 15% 10%, #312e81 0, transparent 50%),
+    radial-gradient(circle at 85% 90%, #0e7490 0, transparent 45%), #0b1020; }
+.ui-auth-caja { width: 100%; max-width: 400px; text-align: center; }
+.ui-mascota { display: block; margin: 0 auto -38px; position: relative; z-index: 1; }
+.ui-tarjeta { background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.14); border-radius: 24px;
+  padding: 3rem 1.5rem 1.5rem; backdrop-filter: blur(16px); color: #e2e8f0; text-align: left; box-shadow: 0 20px 60px rgba(0,0,0,.4); }
+.ui-titulo { margin: 0; text-align: center; font-size: 1.7rem; font-weight: 800; background: var(--ui-grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.ui-sub { margin: .3rem 0 1.4rem; text-align: center; color: #94a3b8; font-size: .95rem; }
+.ui-campo { display: block; margin-bottom: 1rem; }
+.ui-campo > span { display: block; margin-bottom: .35rem; font-size: .82rem; font-weight: 600; color: #cbd5e1; }
+.ui-entrada { position: relative; }
+.ui-entrada input { width: 100%; padding: .8rem 1rem; border-radius: 14px; font: inherit; color: #fff;
+  background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.15); transition: border-color .15s, box-shadow .15s; }
+.ui-entrada input::placeholder { color: #64748b; }
+.ui-entrada input:focus { outline: none; border-color: #818cf8; box-shadow: 0 0 0 3px rgba(129,140,248,.3); }
+.ui-ojo { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); border: none; background: none; color: #94a3b8; cursor: pointer; padding: 6px; font-size: .78rem; font-weight: 600; }
+.ui-boton { width: 100%; padding: .85rem; border: none; border-radius: 14px; font: inherit; font-weight: 700; color: #fff; cursor: pointer;
+  background: var(--ui-grad); box-shadow: 0 8px 24px rgba(99,102,241,.4); transition: transform .1s, filter .15s; }
+.ui-boton:hover:not(:disabled) { filter: brightness(1.1); }
+.ui-boton:active:not(:disabled) { transform: scale(.98); }
+.ui-boton:disabled { opacity: .6; cursor: wait; }
+.ui-error { background: rgba(244,63,94,.15); border: 1px solid rgba(244,63,94,.4); color: #fecdd3; padding: .7rem .9rem; border-radius: 12px; margin-bottom: 1rem; font-size: .9rem; }
+.ui-pie { text-align: center; margin: 1.2rem 0 0; color: #94a3b8; font-size: .92rem; }
+.ui-pie a { color: #a5b4fc; font-weight: 700; text-decoration: none; }
+.ui-pie a:hover { text-decoration: underline; }
+
+/* Navegacion */
+.ui-cabecera { position: sticky; top: 0; z-index: 50; background: rgba(255,255,255,.9); backdrop-filter: blur(10px); border-bottom: 1px solid #e2e8f0; }
+.ui-cabecera-in { max-width: 960px; margin: 0 auto; padding: .7rem 1rem; display: flex; align-items: center; gap: 1rem; }
+.ui-logo { font-weight: 800; font-size: 1.25rem; text-decoration: none; background: var(--ui-grad); -webkit-background-clip: text; background-clip: text; color: transparent; margin-right: auto; }
+.ui-links { display: flex; gap: .25rem; }
+.ui-enlace { display: flex; align-items: center; gap: .4rem; padding: .5rem .8rem; border-radius: 999px; color: #475569; font-weight: 600; font-size: .92rem; text-decoration: none; }
+.ui-enlace:hover { background: #f1f5f9; }
+.ui-enlace.activo { background: #eef2ff; color: #4f46e5; }
+.ui-acciones { display: flex; align-items: center; gap: .5rem; }
+.ui-usuario { font-weight: 700; color: #0f172a; font-size: .9rem; }
+.ui-mini { border: 1px solid #e2e8f0; background: #fff; border-radius: 999px; padding: .4rem .8rem; font: inherit; font-size: .82rem; font-weight: 600; color: #475569; cursor: pointer; }
+.ui-mini:hover { background: #f8fafc; color: #0f172a; }
+.ui-tabs { display: none; }
+@media (max-width: 720px) {
+  body { padding-bottom: 72px; }
+  .ui-links, .ui-usuario { display: none; }
+  .ui-tabs { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 50; background: #fff; border-top: 1px solid #e2e8f0;
+    padding: .35rem .5rem calc(.35rem + env(safe-area-inset-bottom)); justify-content: space-around; }
+  .ui-tabs .ui-enlace { flex-direction: column; gap: 2px; font-size: .7rem; padding: .35rem .7rem; border-radius: 12px; }
+}.ui-entrada input:-webkit-autofill { -webkit-text-fill-color: #fff; box-shadow: 0 0 0 1000px #1e2140 inset; caret-color: #fff; }
