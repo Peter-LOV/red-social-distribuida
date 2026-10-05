@@ -1,0 +1,19 @@
+.rs-contenedor.rs-ancho { max-width: 1040px; }
+.rs-feed-grid { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 1.5rem; align-items: start; }
+.rs-lateral { position: sticky; top: 84px; display: flex; flex-direction: column; gap: 1rem; }
+@media (max-width: 960px) { .rs-feed-grid { grid-template-columns: 1fr; } .rs-lateral { position: static; } }
+.rs-saludo { margin-bottom: 1rem; }
+.rs-saludo h1 { margin: 0; font-size: 1.6rem; font-weight: 800; }
+.rs-saludo h1 span { background: var(--ui-grad, linear-gradient(135deg, #6366f1, #06b6d4)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.rs-saludo p { margin: .25rem 0 0; color: var(--rs-texto-suave); }
+.rs-sug { padding: 1rem 1.1rem; }
+.rs-sug h2 { margin: 0 0 .5rem; font-size: 1rem; }
+.rs-sug-fila { display: flex; align-items: center; gap: .7rem; padding: .5rem 0; }
+.rs-sug-info { flex: 1; min-width: 0; }
+.rs-sug-nombre { font-weight: 700; font-size: .92rem; }
+.rs-sug-via { font-size: .78rem; color: var(--rs-texto-suave); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rs-sug-nota { margin: 0; font-size: .88rem; color: var(--rs-texto-suave); line-height: 1.45; }
+.rs-boton--chico { padding: .35rem .85rem; font-size: .8rem; }
+.rs-boton--hecho { background: var(--rs-primario-suave); color: var(--rs-primario); }
+.rs-atajos { padding: 1rem 1.1rem; display: grid; gap: .5rem; }
+.rs-atajos a { text-decoration: none; }

@@ -3,10 +3,15 @@ import { Link } from 'react-router-dom';
 import { PostCard } from '../components/PostCard';
 import { PostComposer } from '../components/PostComposer';
 import { PostSkeleton } from '../components/PostSkeleton';
+import { PerfilLateral } from '../components/PerfilLateral';
+import { Sugeridos } from '../components/Sugeridos';
+import { useAuth } from '../auth/AuthContext';
 import { Toasts } from '../components/Toasts';
 import { useToast } from '../hooks/useToast';
 import { POR_PAGINA, mensajeAmigable, obtenerFeed } from '../services/posts';
 import '../styles/posts.css';
+import '../styles/feed.css';
+import '../styles/synapse.css';
 
 // Pantalla de inicio: publicaciones de las personas a las que sigo
 export function Feed() {
@@ -18,6 +23,7 @@ export function Feed() {
   const [error, setError] = useState('');
   const [intento, setIntento] = useState(0);
   const { toasts, mostrar } = useToast();
+  const { usuario } = useAuth();
 
   useEffect(() => {
     let activo = true;
@@ -66,8 +72,14 @@ export function Feed() {
   const agregarPublicado = (post) => setPosts((lista) => [post, ...lista]);
 
   return (
-    <main className="rs-contenedor">
-      <h1 className="rs-titulo">Inicio</h1>
+    <main className="rs-contenedor rs-ancho">
+      <div className="rs-saludo">
+        <h1>Hola, <span>{usuario?.nombre?.split(' ')[0]}</span></h1>
+        <p>Esto es lo que comparten las personas que sigues.</p>
+      </div>
+      <div className="rs-feed-grid">
+      <PerfilLateral />
+      <div>
       <PostComposer onPublicado={agregarPublicado} onMensaje={mostrar} />
 
       {cargando && (
@@ -116,6 +128,9 @@ export function Feed() {
         </>
       )}
 
+      </div>
+      <Sugeridos onSeguido={() => setIntento((n) => n + 1)} onMensaje={mostrar} />
+      </div>
       <Toasts toasts={toasts} />
     </main>
   );
