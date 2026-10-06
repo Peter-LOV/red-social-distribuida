@@ -1,0 +1,301 @@
+/* Estilos para Personas, Grafo y Perfil (Persona A) — reutiliza tokens de posts/synapse */
+
+.rs-personas,
+.rs-grafo-pagina,
+.rs-perfil-pagina {
+  max-width: 1040px;
+  padding-bottom: 5rem;
+}
+
+.rs-personas-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.rs-persona-card {
+  padding: 1.1rem 1.15rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.rs-persona-cabecera {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  text-decoration: none;
+  color: inherit;
+}
+
+.rs-persona-cabecera:hover .rs-persona-nombre {
+  color: var(--rs-primario);
+}
+
+.rs-persona-info {
+  min-width: 0;
+}
+
+.rs-persona-nombre {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rs-persona-via {
+  margin: 0.15rem 0 0;
+  font-size: 0.82rem;
+  color: var(--rs-texto-suave);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rs-persona-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.rs-persona-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.rs-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: var(--rs-primario-suave);
+  color: var(--rs-primario);
+}
+
+.rs-chip--suave {
+  background: var(--sy-tile, rgba(15, 23, 42, 0.05));
+  color: var(--rs-texto-suave);
+}
+
+.rs-personas-vacio {
+  padding: 2rem 1.25rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.rs-aviso-caja {
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.rs-aviso-caja p {
+  margin: 0;
+  color: var(--rs-texto-suave);
+}
+
+/* Grafo */
+.rs-grafo-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.85rem;
+}
+
+.rs-grafo-canvas {
+  overflow: hidden;
+  min-height: 420px;
+  height: min(70vh, 640px);
+  padding: 0;
+  position: relative;
+}
+
+.rs-grafo-canvas canvas {
+  display: block;
+}
+
+/* Perfil */
+.rs-perfil-cabecera {
+  padding: 1.5rem;
+  display: flex;
+  gap: 1.25rem;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+}
+
+.rs-perfil-datos {
+  flex: 1;
+  min-width: 0;
+}
+
+.rs-perfil-datos h1 {
+  margin: 0 0 0.35rem;
+  font-size: 1.55rem;
+  font-weight: 800;
+}
+
+.rs-perfil-bio {
+  margin: 0 0 0.85rem;
+  color: var(--rs-texto);
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
+.rs-perfil-bio--vacia {
+  color: var(--rs-texto-suave);
+  font-style: italic;
+}
+
+.rs-stats--perfil {
+  max-width: 360px;
+  margin-bottom: 0.85rem;
+}
+
+.rs-perfil-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.rs-perfil-editar {
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.rs-input {
+  width: 100%;
+  border: 1px solid var(--rs-borde);
+  border-radius: 10px;
+  padding: 0.6rem 0.85rem;
+  font: inherit;
+  color: var(--rs-texto);
+  background: transparent;
+}
+
+.rs-input:focus {
+  outline: none;
+  border-color: var(--rs-primario);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+.rs-textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.rs-perfil-tabs {
+  display: flex;
+  gap: 0.35rem;
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.rs-tab {
+  border: 1px solid var(--rs-borde);
+  background: transparent;
+  color: var(--rs-texto-suave);
+  border-radius: 999px;
+  padding: 0.4rem 0.95rem;
+  font: inherit;
+  font-weight: 600;
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.rs-tab:hover {
+  background: var(--rs-primario-suave);
+  color: var(--rs-primario);
+}
+
+.rs-tab.activo {
+  background: var(--rs-primario);
+  color: #fff;
+  border-color: transparent;
+}
+
+.rs-perfil-lista {
+  padding: 0.5rem 1rem 1rem;
+}
+
+.rs-perfil-fila {
+  text-decoration: none;
+  color: inherit;
+  border-radius: 10px;
+  padding: 0.55rem 0.35rem;
+  margin: 0 -0.35rem;
+  transition: background-color 0.15s;
+}
+
+.rs-perfil-fila:hover {
+  background: var(--sy-tile, rgba(15, 23, 42, 0.05));
+}
+
+@media (max-width: 640px) {
+  .rs-perfil-cabecera {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .rs-perfil-acciones,
+  .rs-stats--perfil {
+    justify-content: center;
+  }
+
+  .rs-stats--perfil {
+    width: 100%;
+  }
+}
+
+/* Tema oscuro: ajustes puntuales */
+html[data-tema='oscuro'] .rs-tab:hover {
+  background: rgba(99, 102, 241, 0.18);
+}
+
+html[data-tema='oscuro'] .rs-input {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+html[data-tema='oscuro'] .rs-boton--fantasma:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--rs-texto);
+}
+
+/* Botón dejar de seguir: borde rojo, texto rojo, fondo suave */
+.rs-boton--peligro {
+  background: transparent;
+  color: var(--rs-acento, #f43f5e);
+  border-color: var(--rs-acento, #f43f5e);
+}
+.rs-boton--peligro:hover:not(:disabled) {
+  background: rgba(244, 63, 94, 0.12);
+  color: var(--rs-acento, #f43f5e);
+  border-color: var(--rs-acento, #f43f5e);
+  box-shadow: 0 2px 8px rgba(244, 63, 94, 0.25);
+}
+html[data-tema="oscuro"] .rs-boton--peligro {
+  color: #fb7185;
+  border-color: #fb7185;
+}
+html[data-tema="oscuro"] .rs-boton--peligro:hover:not(:disabled) {
+  background: rgba(244, 63, 94, 0.2);
+  color: #fecdd3;
+  border-color: #fecdd3;
+}
