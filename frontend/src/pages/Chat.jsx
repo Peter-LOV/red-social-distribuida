@@ -9,17 +9,21 @@ export function Chat() {
   const [nuevoMensaje, setNuevoMensaje] = useState('');
   const [cargandoConv, setCargandoConv] = useState(true);
 
-  // Estados para selección de nuevo chat
+  // Estados para nuevo chat
   const [vistaNuevoChat, setVistaNuevoChat] = useState(false);
   const [seguidores, setSeguidores] = useState([]);
   const [siguiendo, setSiguiendo] = useState([]);
   const [tabContactos, setTabContactos] = useState('seguidores');
   const [cargandoContactos, setCargandoContactos] = useState(false);
-
-  // Chat provisional en memoria (no crea nodo en Neo4j hasta enviar el primer texto)
   const [contactoProvisional, setContactoProvisional] = useState(null);
 
-  // Resolver credenciales del usuario autenticado
+  // Referencias para evitar desincronización por closures en WebSocket
+  const conversacionActivaRef = useRef(null);
+  const miIdRef = useRef(null);
+  const wsRef = useRef(null);
+  const scrollRef = useRef(null);
+
+  // Resolver identidad del usuario autenticado
   const token = localStorage.getItem('token');
   const usuarioGuardado = JSON.parse(localStorage.getItem('usuario') || localStorage.getItem('user') || '{}');
   
@@ -34,9 +38,33 @@ export function Chat() {
     }
   }
 
-  const wsRef = useRef(null);
-  const scrollRef = useRef(null);
+  // Sincronizar referencias con el estado más reciente
+  useEffect(() => {
+    conversacionActivaRef.current = conversacionActiva;
+  }, [conversacionActiva]);
 
+  useEffect(() => {
+    miIdRef.current = miId;
+  }, [miId]);
+
+  const STORAGE_KEY_VISTOS = `chat_vistos_${miId}`;
+
+  const obtenerVistos = () => {
+    try {
+      return JSON.parse(localStorage.getItem(STORAGE_KEY_VISTOS) || '{}');
+    } catch {
+      return {};
+    }
+  };
+
+  const marcarComoVistoEnStorage = (convId, fecha) => {
+    if (!convId) return;
+    const vistos = obtenerVistos();
+    vistos[convId] = fecha || new Date().toISOString();
+    localStorage.setItem(STORAGE_KEY_VISTOS, JSON.stringify(vistos));
+  };
+
+  // 1. Cargar lista de conversaciones
   useEffect(() => {
     cargarConversaciones();
   }, []);
@@ -45,15 +73,23 @@ export function Chat() {
     try {
       setCargandoConv(true);
       const datos = await api('/chat/conversaciones');
-      setConversaciones(datos || []);
+      const vistos = obtenerVistos();
 
-      if (idParaActivar && datos) {
-        const encontrada = datos.find((c) => c.id === idParaActivar);
+      const listaProcesada = (datos || []).map((conv) => {
+        let noLeido = false;
+        if (conv.ultimaFecha) {
+          const ultimaVisita = vistos[conv.id];
+          noLeido = !ultimaVisita || new Date(conv.ultimaFecha) > new Date(ultimaVisita);
+        }
+        return { ...conv, noLeido };
+      });
+
+      setConversaciones(listaProcesada);
+
+      if (idParaActivar) {
+        const encontrada = listaProcesada.find((c) => c.id === idParaActivar);
         if (encontrada) {
-          setContactoProvisional(null);
-          setConversacionActiva(encontrada);
-          const historial = await api(`/chat/conversaciones/${encontrada.id}/mensajes`);
-          setMensajes(historial || []);
+          seleccionarConversacion(encontrada);
         }
       }
     } catch (err) {
@@ -63,9 +99,12 @@ export function Chat() {
     }
   }
 
-  // Conexión WebSocket para mensajería en tiempo real
-  useEffect(() => {
+  // 2. Conectar y reconectar automáticamente el WebSocket
+  const conectarWebSocket = () => {
     if (!token) return;
+    if (wsRef.current && (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING)) {
+      return;
+    }
 
     const wsUrl = `ws://localhost:8080/ws/chat?token=${token}`;
     const ws = new WebSocket(wsUrl);
@@ -75,30 +114,40 @@ export function Chat() {
       try {
         const payload = JSON.parse(evento.data);
         if (payload.tipo === 'mensaje') {
-          const estaEnEstaConversacion = conversacionActiva?.id === payload.conversacionId;
+          const idChatAbierto = conversacionActivaRef.current?.id;
+          const estaEnEstaConversacion = idChatAbierto === payload.conversacionId;
+          const idActual = miIdRef.current;
 
-          // 1. Si el chat está abierto, agregar el mensaje al historial visual
+          // Si el chat está abierto, agregar o sustituir el temporal
           if (estaEnEstaConversacion) {
             setMensajes((prev) => {
-              if (prev.some((m) => String(m.id) === String(payload.id))) return prev;
+              const existe = prev.some(
+                (m) => String(m.id) === String(payload.id) || (m.tempId && m.texto === payload.texto)
+              );
+              if (existe) {
+                return prev.map((m) => (m.tempId && m.texto === payload.texto ? payload : m));
+              }
               return [...prev, payload];
             });
+            marcarComoVistoEnStorage(payload.conversacionId, payload.fecha);
           }
 
-          // 2. Actualizar lista lateral y marcar punto no leído si no está abierta
+          // Actualizar barra lateral
           setConversaciones((prev) => {
             const existe = prev.some((c) => c.id === payload.conversacionId);
             if (existe) {
-              return prev.map((c) =>
-                c.id === payload.conversacionId
-                  ? {
-                      ...c,
-                      ultimoTexto: payload.texto,
-                      ultimaFecha: payload.fecha,
-                      noLeido: !estaEnEstaConversacion && String(payload.autorId) !== String(miId),
-                    }
-                  : c
-              );
+              return prev.map((c) => {
+                if (c.id === payload.conversacionId) {
+                  const esMio = String(payload.autorId) === String(idActual);
+                  return {
+                    ...c,
+                    ultimoTexto: payload.texto,
+                    ultimaFecha: payload.fecha,
+                    noLeido: !estaEnEstaConversacion && !esMio,
+                  };
+                }
+                return c;
+              });
             } else {
               cargarConversaciones(estaEnEstaConversacion ? payload.conversacionId : null);
               return prev;
@@ -110,20 +159,31 @@ export function Chat() {
       }
     };
 
-    return () => {
-      ws.close();
+    ws.onclose = () => {
+      // Reconectar si se cerró por inactividad
+      setTimeout(() => {
+        if (token) conectarWebSocket();
+      }, 1500);
     };
-  }, [token, conversacionActiva?.id]);
+  };
+
+  useEffect(() => {
+    conectarWebSocket();
+    return () => {
+      if (wsRef.current) wsRef.current.close();
+    };
+  }, [token]);
 
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [mensajes]);
 
-  // Seleccionar conversación y limpiar marca de no leído
+  // 3. Abrir conversación existente
   async function seleccionarConversacion(conv) {
     setVistaNuevoChat(false);
     setContactoProvisional(null);
 
+    marcarComoVistoEnStorage(conv.id, conv.ultimaFecha || new Date().toISOString());
     setConversaciones((prev) =>
       prev.map((c) => (c.id === conv.id ? { ...c, noLeido: false } : c))
     );
@@ -137,7 +197,7 @@ export function Chat() {
     }
   }
 
-  // Enviar mensaje (crea el chat en Neo4j solo con el primer texto)
+  // 4. Enviar mensaje de inmediato con reconexión reactiva
   async function manejarEnvio(e) {
     e.preventDefault();
     const texto = nuevoMensaje.trim();
@@ -145,6 +205,7 @@ export function Chat() {
 
     let convId = conversacionActiva?.id;
 
+    // Crear conversación si es borrador inicial
     if (!convId && contactoProvisional) {
       try {
         const res = await api('/chat/conversaciones', {
@@ -162,6 +223,7 @@ export function Chat() {
           noLeido: false,
         };
 
+        marcarComoVistoEnStorage(convId, nuevaConv.ultimaFecha);
         setConversacionActiva(nuevaConv);
         setConversaciones((prev) => [nuevaConv, ...prev.filter((c) => c.id !== convId)]);
         setContactoProvisional(null);
@@ -171,18 +233,50 @@ export function Chat() {
       }
     }
 
-    if (convId && wsRef.current) {
-      wsRef.current.send(
-        JSON.stringify({
-          conversacionId: convId,
-          texto: texto,
-        })
-      );
-      setNuevoMensaje('');
+    if (!convId) return;
+
+    // Pintar de inmediato en la pantalla del emisor (Optimistic UI)
+    const mensajeOptimista = {
+      id: `temp-${Date.now()}`,
+      tempId: true,
+      conversacionId: convId,
+      autorId: miId,
+      texto: texto,
+      fecha: new Date().toISOString(),
+    };
+
+    setMensajes((prev) => [...prev, mensajeOptimista]);
+    setNuevoMensaje('');
+
+    setConversaciones((prev) =>
+      prev.map((c) =>
+        c.id === convId
+          ? { ...c, ultimoTexto: texto, ultimaFecha: mensajeOptimista.fecha, noLeido: false }
+          : c
+      )
+    );
+
+    const despacharSocket = () => {
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        wsRef.current.send(
+          JSON.stringify({
+            conversacionId: convId,
+            texto: texto,
+          })
+        );
+      }
+    };
+
+    // Si el socket se desconectó por reposo, reconectarlo y despachar
+    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+      conectarWebSocket();
+      setTimeout(despacharSocket, 300);
+    } else {
+      despacharSocket();
     }
   }
 
-  // Abrir selector de contactos
+  // 5. Selector de nuevos contactos
   async function abrirNuevoChat() {
     setConversacionActiva(null);
     setContactoProvisional(null);
@@ -220,7 +314,7 @@ export function Chat() {
 
   return (
     <div className="chat-container">
-      {/* Sidebar lateral de conversaciones */}
+      {/* Sidebar lateral */}
       <div className="chat-sidebar">
         <div className="chat-sidebar-header">
           <h2 className="chat-sidebar-title">Mensajes</h2>
@@ -256,15 +350,17 @@ export function Chat() {
                   <div
                     key={conv.id}
                     onClick={() => seleccionarConversacion(conv)}
-                    className={`chat-conv-item ${activa ? 'active' : ''}`}
+                    className={`chat-conv-item ${activa ? 'active' : ''} ${conv.noLeido ? 'unopened' : ''}`}
                   >
                     <div className="chat-avatar">
                       {conv.otroNombre ? conv.otroNombre.charAt(0).toUpperCase() : '?'}
                     </div>
                     <div className="chat-conv-meta">
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span className="chat-conv-nombre">{conv.otroNombre}</span>
-                        {conv.noLeido && <span className="chat-unread-dot" />}
+                        <span className={`chat-conv-nombre ${conv.noLeido ? 'unread-title' : ''}`}>
+                          {conv.otroNombre}
+                        </span>
+                        {conv.noLeido && <span className="chat-unread-dot" title="Mensaje no leído" />}
                       </div>
                       <div className={`chat-conv-preview ${conv.noLeido ? 'unread' : ''}`}>
                         {conv.ultimoTexto || 'Conversación iniciada'}
