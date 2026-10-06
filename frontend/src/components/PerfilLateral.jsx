@@ -34,19 +34,29 @@ export function PerfilLateral() {
         <Avatar nombre={usuario?.nombre} tamano={72} />
         <h2>{usuario?.nombre}</h2>
         <div className="rs-stats">
-          <div><strong>{seguidores ? seguidores.length : '\u2026'}</strong><span>Seguidores</span></div>
-          <div><strong>{seguidos ? seguidos.length : '\u2026'}</strong><span>Siguiendo</span></div>
+          <div>
+            <strong>{seguidores ? seguidores.length : '\u2026'}</strong>
+            <span>Seguidores</span>
+          </div>
+          <div>
+            <strong>{seguidos ? seguidos.length : '\u2026'}</strong>
+            <span>Siguiendo</span>
+          </div>
         </div>
-        <Link to="/perfil" className="rs-boton rs-boton--fantasma rs-boton--chico">Ver mi perfil</Link>
+        <Link to={`/perfil/${usuario?.id}`} className="rs-boton rs-boton--fantasma rs-boton--chico">
+          Ver mi perfil
+        </Link>
       </section>
       <section className="rs-tarjeta rs-sug">
         <h2>Tu red</h2>
-        {seguidos?.length === 0 && <p className="rs-sug-nota">Aún no sigues a nadie. Empieza con las sugerencias.</p>}
+        {seguidos?.length === 0 && (
+          <p className="rs-sug-nota">Aún no sigues a nadie. Empieza con las sugerencias.</p>
+        )}
         {seguidos?.slice(0, 6).map((p) => (
-          <div key={p.id} className="rs-sug-fila">
+          <Link key={p.id} to={`/perfil/${p.id}`} className="rs-sug-fila" style={{ textDecoration: 'none', color: 'inherit' }}>
             <Avatar nombre={p.nombre} tamano={34} />
             <div className="rs-sug-nombre">{p.nombre}</div>
-          </div>
+          </Link>
         ))}
       </section>
     </aside>
