@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 import { Avatar } from '../components/Avatar';
 import { Toasts } from '../components/Toasts';
 import { useAuth } from '../auth/AuthContext';
@@ -25,6 +25,7 @@ const comoLista = (d) => (Array.isArray(d) ? d : []);
 // Pantalla de perfil de usuario (Persona A)
 export function Perfil() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { usuario: yo } = useAuth();
   const esMio = Boolean(yo?.id && (id === yo.id || id === 'me'));
   const idReal = esMio ? yo.id : id;
@@ -77,6 +78,18 @@ export function Perfil() {
       activo = false;
     };
   }, [idReal, esMio]);
+
+  // Redirigir al chat pasando el contacto en el estado de navegación
+  const irAChat = (contacto) => {
+    navigate('/chat', {
+      state: {
+        contacto: {
+          id: contacto.id,
+          nombre: contacto.nombre,
+        },
+      },
+    });
+  };
 
   const alSeguir = async () => {
     setAccion('seguir');
@@ -209,6 +222,22 @@ export function Perfil() {
                     {accion === 'seguir' ? '…' : 'Seguir'}
                   </button>
                 )}
+
+                {/* Botón para enviar mensaje al perfil visto */}
+                <button
+                  type="button"
+                  className="rs-boton rs-boton--chico"
+                  style={{
+                    backgroundColor: 'rgba(56, 189, 248, 0.15)',
+                    border: '1px solid #38bdf8',
+                    color: '#38bdf8',
+                    fontWeight: '600',
+                  }}
+                  onClick={() => irAChat(perfil)}
+                >
+                  Enviar mensaje
+                </button>
+
                 {estado?.meSigue && <span className="rs-chip rs-chip--suave">Te sigue</span>}
               </>
             )}
@@ -289,15 +318,53 @@ export function Perfil() {
             {tab === 'comun' && 'No tienen personas en común.'}
           </p>
         )}
-        {listaTab?.map((p) => (
-          <Link key={p.id} to={`/perfil/${p.id}`} className="rs-sug-fila rs-perfil-fila">
-            <Avatar nombre={p.nombre} tamano={40} />
-            <div className="rs-sug-info">
-              <div className="rs-sug-nombre">{p.nombre}</div>
-              {p.bio && <div className="rs-sug-via">{p.bio}</div>}
+        {listaTab?.map((p) => {
+          const esEsteMio = Boolean(yo?.id && p.id === yo.id);
+          return (
+            <div
+              key={p.id}
+              className="rs-sug-fila rs-perfil-fila"
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+            >
+              <Link
+                to={`/perfil/${p.id}`}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  textDecoration: 'none',
+                  color: 'inherit',
+                  flex: 1,
+                }}
+              >
+                <Avatar nombre={p.nombre} tamano={40} />
+                <div className="rs-sug-info">
+                  <div className="rs-sug-nombre">{p.nombre}</div>
+                  {p.bio && <div className="rs-sug-via">{p.bio}</div>}
+                </div>
+              </Link>
+
+              {/* Botón para enviar mensaje a este seguidor/seguido */}
+              {!esEsteMio && (
+                <button
+                  type="button"
+                  className="rs-boton rs-boton--chico"
+                  style={{
+                    backgroundColor: 'rgba(56, 189, 248, 0.15)',
+                    border: '1px solid #38bdf8',
+                    color: '#38bdf8',
+                    marginLeft: '8px',
+                    fontSize: '0.85rem',
+                    padding: '4px 10px',
+                  }}
+                  onClick={() => irAChat(p)}
+                >
+                  Mensaje
+                </button>
+              )}
             </div>
-          </Link>
-        ))}
+          );
+        })}
       </section>
 
       <Toasts toasts={toasts} />

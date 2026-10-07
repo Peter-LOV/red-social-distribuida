@@ -5,5 +5,7 @@ public record ConversacionResumen(
     String otroId,
     String otroNombre,
     String ultimoTexto,
-    String ultimaFecha
+    String ultimaFecha,
+    String ultimoMensajeId,
+    String ultimoAutorId
 ) {}
