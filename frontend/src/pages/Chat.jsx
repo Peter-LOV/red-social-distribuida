@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
-import '../styles/Chat.css';
+import '../styles/chat.css';
+import { useTema } from '../hooks/useTema';
 
 export function Chat() {
   const location = useLocation();
@@ -11,6 +12,14 @@ export function Chat() {
   const [conversacionActiva, setConversacionActiva] = useState(null);
   const [mensajes, setMensajes] = useState([]);
   const [nuevoMensaje, setNuevoMensaje] = useState('');
+  const [fondoChat, setFondoChat] = useState(() => {
+    return localStorage.getItem('synapse-chat-bg') || 'bg-dots';
+  });
+
+  const cambiarFondo = (nuevoFondo) => {
+    setFondoChat(nuevoFondo);
+    localStorage.setItem('synapse-chat-bg', nuevoFondo);
+  };
   const [cargandoConv, setCargandoConv] = useState(true);
 
   // Selector de nuevo chat
@@ -485,19 +494,54 @@ export function Chat() {
                 </div>
                 <span className="chat-header-name">{usuarioEnPantalla}</span>
               </div>
-              <button 
-                className="chat-modal-close" 
-                onClick={() => {
-                  setConversacionActiva(null);
-                  setContactoProvisional(null);
-                }}
-                title="Mboty chat"
-              >
-                ✕
-              </button>
+  
+              {/* Agrega este bloque para seleccionar los fondos a la derecha: */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div className="chat-bg-selector" title="Cambiar fondo del chat">
+                  <button 
+                    type="button" 
+                    onClick={() => cambiarFondo('bg-default')} 
+                    className={`chat-bg-dot ${fondoChat === 'bg-default' ? 'activo' : ''}`} 
+                    style={{ backgroundColor: '#ffffff', border: '1px solid #cbd5e1' }} 
+                    title="Limpio" 
+                  />
+                  <button 
+                    type="button" 
+                    onClick={() => cambiarFondo('bg-grid')} 
+                    className={`chat-bg-dot ${fondoChat === 'bg-grid' ? 'activo' : ''}`} 
+                    style={{ backgroundColor: '#cbd5e1' }} 
+                    title="Cuadrícula" 
+                  />
+                  <button 
+                    type="button" 
+                    onClick={() => cambiarFondo('bg-sky')} 
+                    className={`chat-bg-dot ${fondoChat === 'bg-sky' ? 'activo' : ''}`} 
+                    style={{ backgroundColor: '#bae6fd' }} 
+                    title="Celeste" 
+                  />
+                  <button 
+                    type="button" 
+                    onClick={() => cambiarFondo('bg-warm')} 
+                    className={`chat-bg-dot ${fondoChat === 'bg-warm' ? 'activo' : ''}`} 
+                    style={{ backgroundColor: '#e2d9cc' }} 
+                    title="Arena Cálido" 
+                  />
+                </div>
+
+                <button 
+                  className="chat-modal-close" 
+                  onClick={() => {
+                    setConversacionActiva(null);
+                    setContactoProvisional(null);
+                  }}
+                  title="Cerrar chat"
+                >
+                  ✕
+                </button>
+              </div>
             </div>
 
-            <div className="chat-messages-container">
+            <div className={`chat-messages-container ${fondoChat}`}>
               {mensajes.length === 0 && contactoProvisional && (
                 <div className="chat-placeholder-draft">
                   <p>Envía un primer mensaje a <b>{contactoProvisional.nombre}</b> para comenzar la conversación.</p>
@@ -542,8 +586,8 @@ export function Chat() {
           <div className="chat-placeholder">
             <div style={{ textAlign: 'center' }}>
               <div style={{ fontSize: '3.5rem', marginBottom: '1rem' }}>💬</div>
-              <h3 style={{ color: '#e2e8f0', marginBottom: '0.5rem', fontSize: '1.4rem' }}>Tus Mensajes</h3>
-              <p style={{ color: '#64748b', maxWidth: '340px', margin: '0 auto', fontSize: '0.95rem' }}>
+              <h3 style={{ marginBottom: '0.5rem', fontSize: '1.4rem' }}>Tus Mensajes</h3>
+              <p style={{ maxWidth: '340px', margin: '0 auto', fontSize: '0.95rem' }}>
                 Selecciona una conversación del lateral o pulsa <b>+ Nuevo</b> para escribirle a un contacto.
               </p>
             </div>

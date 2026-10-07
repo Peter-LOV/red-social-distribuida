@@ -223,27 +223,20 @@ export function Perfil() {
                   </button>
                 )}
 
-                {/* Botón para enviar mensaje al perfil visto */}
-                <button
-                  type="button"
-                  className="rs-boton rs-boton--chico"
-                  style={{
-                    backgroundColor: 'rgba(56, 189, 248, 0.15)',
-                    border: '1px solid #38bdf8',
-                    color: '#38bdf8',
-                    fontWeight: '600',
-                  }}
-                  onClick={() => irAChat(perfil)}
-                >
-                  Enviar mensaje
-                </button>
-
                 {estado?.meSigue && <span className="rs-chip rs-chip--suave">Te sigue</span>}
               </>
             )}
             <Link to="/grafo" className="rs-boton rs-boton--fantasma rs-boton--chico">
               Ver grafo
             </Link>
+            {/* Botón para enviar mensaje al perfil visto */}
+                <button
+                  type="button"
+                  className="rs-boton rs-boton--fantasma rs-boton--chico"
+                  onClick={() => irAChat(perfil)}
+                >
+                  Enviar mensaje
+                </button>
           </div>
         </div>
       </section>

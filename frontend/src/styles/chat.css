@@ -77,7 +77,7 @@
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background-color: #0284c7;
+  background-color: #076391;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -127,7 +127,7 @@
   position: absolute;
   top: 8px;
   right: 10px;
-  color: #facc15;
+  color: #3ea5e9;
   font-size: 12px;
   line-height: 1;
   z-index: 2;
@@ -610,19 +610,26 @@
   box-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
 }
 
-/* MODO CLARO - data-tema="claro" */
+/* =========================================================
+   SOPORTE PARA MODO CLARO (Synapse data-tema="claro")
+   ========================================================= */
+
+/* Contenedor principal */
 [data-tema="claro"] .chat-container {
   background-color: #ffffff !important;
   color: #1e293b !important;
-  border: 1px solid #e2e8f0 !important;
+  border: 1px solid #cbd5e1 !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06) !important;
 }
 
+/* Barra lateral izquierda */
 [data-tema="claro"] .chat-sidebar {
   background-color: #f8fafc !important;
   border-right: 1px solid #e2e8f0 !important;
 }
 
 [data-tema="claro"] .chat-sidebar-header {
+  background-color: #ffffff !important;
   border-bottom: 1px solid #e2e8f0 !important;
 }
 
@@ -630,8 +637,9 @@
   color: #0284c7 !important;
 }
 
+/* Elementos de la lista de conversaciones */
 [data-tema="claro"] .chat-conv-item:hover {
-  background-color: rgba(0, 0, 0, 0.05) !important;
+  background-color: rgba(0, 0, 0, 0.04) !important;
 }
 
 [data-tema="claro"] .chat-conv-item.active {
@@ -647,10 +655,20 @@
   color: #64748b !important;
 }
 
+[data-tema="claro"] .chat-conv-preview.unread {
+  color: #0284c7 !important;
+}
+
+[data-tema="claro"] .chat-conv-time-preview {
+  color: #94a3b8 !important;
+}
+
+/* Área central derecha del chat */
 [data-tema="claro"] .chat-area {
   background-color: #f1f5f9 !important;
 }
 
+/* Cabecera del chat abierto */
 [data-tema="claro"] .chat-header {
   background-color: #ffffff !important;
   border-bottom: 1px solid #e2e8f0 !important;
@@ -660,19 +678,18 @@
   color: #0f172a !important;
 }
 
-[data-tema="claro"] .chat-placeholder h3 {
-  color: #0f172a !important;
-}
-
-[data-tema="claro"] .chat-placeholder p {
-  color: #64748b !important;
-}
-
+/* Mensajes recibidos (los de la otra persona) */
 [data-tema="claro"] .chat-message-bubble.otro {
   background-color: #ffffff !important;
   color: #0f172a !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
 }
 
+[data-tema="claro"] .chat-message-time {
+  color: rgba(0, 0, 0, 0.5) !important;
+}
+
+/* Barra inferior donde escribes */
 [data-tema="claro"] .chat-input-area {
   background-color: #ffffff !important;
   border-top: 1px solid #e2e8f0 !important;
@@ -682,4 +699,139 @@
   background-color: #f8fafc !important;
   color: #0f172a !important;
   border: 1px solid #cbd5e1 !important;
+}
+
+[data-tema="claro"] .chat-input:focus {
+  border-color: #0284c7 !important;
+  background-color: #ffffff !important;
+}
+
+/* Pantalla de bienvenida "Tus Mensajes" */
+[data-tema="claro"] .chat-placeholder h3 {
+  color: #0f172a !important;
+}
+
+[data-tema="claro"] .chat-placeholder p {
+  color: #64748b !important;
+}
+
+/* Selector de contactos (+ Nuevo) */
+[data-tema="claro"] .chat-new-header {
+  background-color: #ffffff !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+}
+
+[data-tema="claro"] .chat-new-header h3 {
+  color: #0f172a !important;
+}
+
+[data-tema="claro"] .chat-tabs,
+[data-tema="claro"] .perfil-tabs-container {
+  background-color: #f8fafc !important;
+  border-bottom-color: #e2e8f0 !important;
+}
+
+[data-tema="claro"] .perfil-tab-btn {
+  background-color: #e2e8f0 !important;
+  color: #475569 !important;
+}
+
+[data-tema="claro"] .perfil-tab-btn.active {
+  background-color: #4f46e5 !important;
+  color: #ffffff !important;
+}
+
+[data-tema="claro"] .perfil-user-card {
+  background-color: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+}
+
+[data-tema="claro"] .perfil-user-card:hover {
+  background-color: #f1f5f9 !important;
+}
+
+[data-tema="claro"] .perfil-user-name {
+  color: #0f172a !important;
+}
+
+/* =========================================================
+   FONDOS PERSONALIZABLES PARA EL ÁREA DE MENSAJES
+   ========================================================= */
+
+/* 1. Fondo por defecto (Limpio) */
+.chat-messages-container.bg-default {
+  background-color: transparent;
+}
+
+/* 2. Cuadrícula técnica sutil (reemplazo de puntitos) */
+.chat-messages-container.bg-grid {
+  background-color: #f8fafc;
+  background-image: 
+    linear-gradient(to right, rgba(203, 213, 225, 0.4) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(203, 213, 225, 0.4) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+[data-tema="oscuro"] .chat-messages-container.bg-grid,
+.chat-messages-container.bg-grid {
+  /* Si estás en modo oscuro */
+  background-color: #0b1120;
+  background-image: 
+    linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+[data-tema="claro"] .chat-messages-container.bg-grid {
+  /* Si estás en modo claro */
+  background-color: #f8fafc;
+  background-image: 
+    linear-gradient(to right, rgba(203, 213, 225, 0.6) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(203, 213, 225, 0.6) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* 3. Tono Celeste Suave / Synapse */
+.chat-messages-container.bg-sky {
+  background: linear-gradient(180deg, #f0f9ff 0%, #e0f2fe 100%);
+}
+[data-tema="oscuro"] .chat-messages-container.bg-sky {
+  background: linear-gradient(180deg, #082f49 0%, #0f172a 100%);
+}
+
+/* 4. Tono Arena Cálido (Estilo WhatsApp) */
+.chat-messages-container.bg-warm {
+  background-color: #efeae2;
+  background-image: radial-gradient(#d1c7b7 1px, transparent 1px);
+  background-size: 16px 16px;
+}
+[data-tema="oscuro"] .chat-messages-container.bg-warm {
+  background-color: #171c26;
+  background-image: radial-gradient(#263043 1px, transparent 1px);
+}
+
+/* Menú flotante o selector de fondos en la cabecera */
+.chat-bg-selector {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: 8px;
+}
+
+.chat-bg-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: transform 0.15s, border-color 0.15s;
+}
+
+.chat-bg-dot:hover {
+  transform: scale(1.15);
+}
+
+.chat-bg-dot.activo {
+  border-color: #0284c7;
+  box-shadow: 0 0 6px rgba(2, 132, 199, 0.4);
 }
