@@ -1,3 +1,7 @@
+/* =========================================================
+   CHAT - CONTENEDOR PRINCIPAL
+   ========================================================= */
+
 .chat-container {
   max-width: 1200px;
   height: calc(100vh - 120px);
@@ -10,7 +14,11 @@
   color: #f8fafc;
 }
 
-/* Sidebar lateral */
+
+/* =========================================================
+   SIDEBAR
+   ========================================================= */
+
 .chat-sidebar {
   width: 320px;
   border-right: 1px solid rgba(255, 255, 255, 0.08);
@@ -20,8 +28,11 @@
 }
 
 .chat-sidebar-header {
-  padding: 1.2rem;
+  padding: 1rem 1.2rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .chat-sidebar-title {
@@ -36,14 +47,18 @@
   overflow-y: auto;
 }
 
+
+/* =========================================================
+   CONVERSACIONES
+   ========================================================= */
+
 .chat-conv-item {
+  position: relative;
   display: flex;
   align-items: center;
-  padding: 0.85rem 1.2rem;
+  gap: 12px;
+  padding: 0.75rem 1rem;
   cursor: pointer;
-  gap: 0.75rem;
-  transition: background-color 0.2s;
-  border-left: 3px solid transparent;
 }
 
 .chat-conv-item:hover {
@@ -54,6 +69,9 @@
   background-color: rgba(56, 189, 248, 0.15);
   border-left: 3px solid #38bdf8;
 }
+
+
+/* Avatar */
 
 .chat-avatar {
   width: 40px;
@@ -68,25 +86,74 @@
   flex-shrink: 0;
 }
 
+
+/* Información */
+
 .chat-conv-meta {
+  min-width: 0;
   flex: 1;
-  overflow: hidden;
+  padding-right: 45px;
+}
+
+.chat-conv-top-line {
+  min-width: 0;
 }
 
 .chat-conv-nombre {
-  font-weight: 600;
-  font-size: 0.95rem;
-  color: #e2e8f0;
-}
-
-.chat-conv-preview {
-  font-size: 0.8rem;
-  color: #94a3b8;
+  display: block;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  margin-top: 2px;
 }
+
+.chat-conv-preview {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-right: 5px;
+}
+
+.chat-conv-preview.unread {
+  color: #f8fafc !important;
+  font-weight: 700;
+}
+
+
+/* =========================================================
+   ESTRELLA DE MENSAJE SIN LEER
+   ========================================================= */
+
+.chat-unread-star {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  color: #facc15;
+  font-size: 12px;
+  line-height: 1;
+  z-index: 2;
+}
+
+
+/* =========================================================
+   HORA DE LA CONVERSACIÓN
+   ========================================================= */
+
+.chat-conv-time-preview {
+  position: absolute;
+  right: 10px;
+  bottom: 7px;
+  font-size: 0.62rem;
+  line-height: 1;
+  color: #94a3b8;
+  opacity: 0.7;
+  white-space: nowrap;
+  z-index: 2;
+}
+
+
+/* =========================================================
+   ESTADO VACÍO
+   ========================================================= */
 
 .chat-empty-text {
   padding: 1.5rem;
@@ -95,7 +162,48 @@
   font-size: 0.9rem;
 }
 
-/* Área activa de chat */
+.chat-empty-box {
+  padding: 2rem 1rem;
+  text-align: center;
+}
+
+
+/* =========================================================
+   BOTÓN NUEVO CHAT
+   ========================================================= */
+
+.chat-btn-nuevo {
+  background: #0284c7;
+  color: white;
+  border: none;
+  padding: 5px 12px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.chat-btn-nuevo:hover {
+  background: #0369a1;
+}
+
+.chat-btn-iniciar {
+  margin-top: 0.8rem;
+  background: #1e293b;
+  border: 1px solid #38bdf8;
+  color: #38bdf8;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+
+/* =========================================================
+   ÁREA PRINCIPAL DEL CHAT
+   ========================================================= */
+
 .chat-area {
   flex: 1;
   display: flex;
@@ -116,6 +224,11 @@
   font-weight: 600;
   font-size: 1.05rem;
 }
+
+
+/* =========================================================
+   MENSAJES
+   ========================================================= */
 
 .chat-messages-container {
   flex: 1;
@@ -168,6 +281,11 @@
   margin-top: 4px;
 }
 
+
+/* =========================================================
+   INPUT DEL CHAT
+   ========================================================= */
+
 .chat-input-area {
   padding: 1rem 1.5rem;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
@@ -199,12 +317,17 @@
   padding: 0 1.25rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: background 0.2s;
 }
 
 .chat-send-button:hover {
   background-color: #0369a1;
 }
+
+
+/* =========================================================
+   PLACEHOLDER
+   ========================================================= */
 
 .chat-placeholder {
   flex: 1;
@@ -214,71 +337,22 @@
   color: #64748b;
 }
 
-.chat-message-row {
-  display: flex !important;
-  width: 100%;
-}
-
-.chat-message-row.mio {
-  justify-content: flex-end !important;
-}
-
-.chat-message-row.otro {
-  justify-content: flex-start !important;
-}
-
-.chat-message-bubble.mio {
-  background-color: #2563eb !important;
-  border-radius: 16px 16px 4px 16px;
-}
-
-.chat-message-bubble.otro {
-  background-color: #1e293b !important;
-  border-radius: 16px 16px 16px 4px;
-}
-
-/* Cabecera del Sidebar con botón */
-.chat-sidebar-header {
-  padding: 1rem 1.2rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.chat-btn-nuevo {
-  background: #0284c7;
-  color: white;
-  border: none;
-  padding: 5px 12px;
-  border-radius: 6px;
-  font-weight: 600;
-  font-size: 0.8rem;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.chat-btn-nuevo:hover {
-  background: #0369a1;
-}
-
-.chat-empty-box {
-  padding: 2rem 1rem;
+.chat-placeholder-draft {
+  margin: auto;
   text-align: center;
+  color: #94a3b8;
+  font-size: 0.95rem;
+  background: rgba(255, 255, 255, 0.02);
+  padding: 1.5rem;
+  border-radius: 10px;
+  border: 1px dashed rgba(255, 255, 255, 0.1);
 }
 
-.chat-btn-iniciar {
-  margin-top: 0.8rem;
-  background: #1e293b;
-  border: 1px solid #38bdf8;
-  color: #38bdf8;
-  padding: 6px 14px;
-  border-radius: 6px;
-  font-size: 0.85rem;
-  cursor: pointer;
-}
 
-/* Modal Emergente */
+/* =========================================================
+   MODAL
+   ========================================================= */
+
 .chat-modal-overlay {
   position: fixed;
   inset: 0;
@@ -297,7 +371,7 @@
   width: 90%;
   max-width: 420px;
   overflow: hidden;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
 }
 
 .chat-modal-header {
@@ -353,7 +427,11 @@
   cursor: pointer;
 }
 
-/* Panel de Nueva Conversación */
+
+/* =========================================================
+   NUEVA CONVERSACIÓN
+   ========================================================= */
+
 .chat-new-container {
   display: flex;
   flex-direction: column;
@@ -375,12 +453,16 @@
   color: #f8fafc;
 }
 
-/* Pestañas de selección */
+
+/* =========================================================
+   PESTAÑAS DE NUEVA CONVERSACIÓN
+   ========================================================= */
+
 .chat-tabs {
   display: flex;
   background-color: #0b1120;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  padding: 0.5rem 1rem 0 1rem;
+  padding: 0.5rem 1rem 0;
   gap: 0.5rem;
 }
 
@@ -423,11 +505,15 @@
   background: rgba(255, 255, 255, 0.06);
 }
 
-/* Pestañas tipo cápsula (idénticas a la pantalla de Perfil) */
+
+/* =========================================================
+   PESTAÑAS DEL PERFIL
+   ========================================================= */
+
 .perfil-tabs-container {
   display: flex;
   gap: 0.75rem;
-  padding: 1.2rem 1.5rem 0.5rem 1.5rem;
+  padding: 1.2rem 1.5rem 0.5rem;
   background-color: #0b1120;
 }
 
@@ -435,12 +521,12 @@
   background-color: #1e293b;
   color: #94a3b8;
   border: none;
-  padding: 0.45rem 1.25rem;
+  padding: 0.5rem 1.25rem;
   border-radius: 9999px;
   font-weight: 600;
   font-size: 0.85rem;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
 }
 
 .perfil-tab-btn.active {
@@ -448,7 +534,11 @@
   color: #ffffff;
 }
 
-/* Tarjetas de contacto (idénticas a las filas de Seguidores del Perfil) */
+
+/* =========================================================
+   TARJETAS DE USUARIO
+   ========================================================= */
+
 .perfil-user-card {
   display: flex;
   align-items: center;
@@ -491,86 +581,11 @@
   color: #f8fafc;
 }
 
-/* Pestañas de contactos tipo cápsula */
-.perfil-tabs-container {
-  display: flex !important;
-  gap: 0.75rem !important;
-  padding: 1.2rem 1.5rem 0.5rem 1.5rem !important;
-  background-color: #0b1120 !important;
-}
 
-.perfil-tab-btn {
-  background-color: #1e293b !important;
-  color: #94a3b8 !important;
-  border: none !important;
-  padding: 0.5rem 1.25rem !important;
-  border-radius: 9999px !important;
-  font-weight: 600 !important;
-  font-size: 0.85rem !important;
-  cursor: pointer !important;
-  transition: all 0.2s ease !important;
-}
+/* =========================================================
+   INDICADORES DE MENSAJES
+   ========================================================= */
 
-.perfil-tab-btn.active {
-  background-color: #4f46e5 !important;
-  color: #ffffff !important;
-}
-
-/* Tarjetas de usuario al presionar + Nuevo */
-.perfil-user-card {
-  display: flex !important;
-  align-items: center !important;
-  gap: 1rem !important;
-  padding: 0.85rem 1.2rem !important;
-  background-color: #161f33 !important;
-  border: 1px solid rgba(255, 255, 255, 0.05) !important;
-  border-radius: 12px !important;
-  margin-bottom: 0.75rem !important;
-  cursor: pointer !important;
-  transition: background-color 0.15s, border-color 0.15s !important;
-}
-
-.perfil-user-card:hover {
-  background-color: #1e2942 !important;
-  border-color: rgba(56, 189, 248, 0.3) !important;
-}
-
-.perfil-user-avatar {
-  width: 42px !important;
-  height: 42px !important;
-  border-radius: 50% !important;
-  background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%) !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  font-weight: 700 !important;
-  font-size: 1.1rem !important;
-  color: #ffffff !important;
-  flex-shrink: 0 !important;
-}
-
-.perfil-user-info {
-  flex: 1 !important;
-}
-
-.perfil-user-name {
-  font-weight: 600 !important;
-  font-size: 1rem !important;
-  color: #f8fafc !important;
-}
-
-.chat-placeholder-draft {
-  margin: auto;
-  text-align: center;
-  color: #94a3b8;
-  font-size: 0.95rem;
-  background: rgba(255, 255, 255, 0.02);
-  padding: 1.5rem;
-  border-radius: 10px;
-  border: 1px dashed rgba(255, 255, 255, 0.1);
-}
-
-/* Indicador de mensaje nuevo */
 .chat-unread-dot {
   width: 8px;
   height: 8px;
@@ -580,7 +595,17 @@
   box-shadow: 0 0 8px #38bdf8;
 }
 
-.chat-conv-preview.unread {
-  color: #f8fafc !important;
+.chat-badge-count {
+  background-color: #0284c7;
+  color: #ffffff;
+  font-size: 0.75rem;
   font-weight: 700;
+  min-width: 20px;
+  height: 20px;
+  border-radius: 9999px;
+  padding: 0 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
 }

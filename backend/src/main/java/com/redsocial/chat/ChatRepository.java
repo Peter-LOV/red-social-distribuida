@@ -91,17 +91,21 @@ public class ChatRepository {
             return s.executeRead(tx -> tx.run("""
                     MATCH (:Usuario {id: $yo})-[:PARTICIPA_EN]->(c:Conversacion)<-[:PARTICIPA_EN]-(otro:Usuario)
                     OPTIONAL MATCH (c)-[:CONTIENE]->(m:Mensaje)
-                    WITH c, otro, m ORDER BY m.fecha DESC
+                    WITH c, otro, m ORDER BY m.fecha DESC, m.id DESC
                     WITH c, otro, collect(m)[0] AS ultimo
+                    OPTIONAL MATCH (ultimoAutor:Usuario)-[:ENVIO]->(ultimo)
                     RETURN c.id AS id, otro.id AS otroId, otro.nombre AS otroNombre,
-                           ultimo.texto AS ultimoTexto, toString(ultimo.fecha) AS ultimaFecha
+                           ultimo.texto AS ultimoTexto, toString(ultimo.fecha) AS ultimaFecha,
+                           ultimo.id AS ultimoMensajeId, ultimoAutor.id AS ultimoAutorId
                     """, Map.of("yo", yo))
                     .list(r -> new ConversacionResumen(
                             r.get("id").asString(),
                             r.get("otroId").asString(),
                             r.get("otroNombre").asString(),
                             r.get("ultimoTexto").asString(null),
-                            r.get("ultimaFecha").asString(null)
+                            r.get("ultimaFecha").asString(null),
+                            r.get("ultimoMensajeId").asString(null),
+                            r.get("ultimoAutorId").asString(null)
                     )));
         }
     }
