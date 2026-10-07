@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import '../styles/chat.css';
-import { useTema } from '../hooks/useTema';
 
 export function Chat() {
   const location = useLocation();
