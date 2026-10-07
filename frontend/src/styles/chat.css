@@ -609,3 +609,77 @@
   justify-content: center;
   box-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
 }
+
+/* MODO CLARO - data-tema="claro" */
+[data-tema="claro"] .chat-container {
+  background-color: #ffffff !important;
+  color: #1e293b !important;
+  border: 1px solid #e2e8f0 !important;
+}
+
+[data-tema="claro"] .chat-sidebar {
+  background-color: #f8fafc !important;
+  border-right: 1px solid #e2e8f0 !important;
+}
+
+[data-tema="claro"] .chat-sidebar-header {
+  border-bottom: 1px solid #e2e8f0 !important;
+}
+
+[data-tema="claro"] .chat-sidebar-title {
+  color: #0284c7 !important;
+}
+
+[data-tema="claro"] .chat-conv-item:hover {
+  background-color: rgba(0, 0, 0, 0.05) !important;
+}
+
+[data-tema="claro"] .chat-conv-item.active {
+  background-color: rgba(2, 132, 199, 0.12) !important;
+  border-left-color: #0284c7 !important;
+}
+
+[data-tema="claro"] .chat-conv-nombre {
+  color: #0f172a !important;
+}
+
+[data-tema="claro"] .chat-conv-preview {
+  color: #64748b !important;
+}
+
+[data-tema="claro"] .chat-area {
+  background-color: #f1f5f9 !important;
+}
+
+[data-tema="claro"] .chat-header {
+  background-color: #ffffff !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+}
+
+[data-tema="claro"] .chat-header-name {
+  color: #0f172a !important;
+}
+
+[data-tema="claro"] .chat-placeholder h3 {
+  color: #0f172a !important;
+}
+
+[data-tema="claro"] .chat-placeholder p {
+  color: #64748b !important;
+}
+
+[data-tema="claro"] .chat-message-bubble.otro {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
+[data-tema="claro"] .chat-input-area {
+  background-color: #ffffff !important;
+  border-top: 1px solid #e2e8f0 !important;
+}
+
+[data-tema="claro"] .chat-input {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+  border: 1px solid #cbd5e1 !important;
+}

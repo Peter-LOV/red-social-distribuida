@@ -478,11 +478,23 @@ export function Chat() {
           </div>
         ) : conversacionActiva || contactoProvisional ? (
           <>
-            <div className="chat-header">
-              <div className="chat-avatar">
-                {usuarioEnPantalla?.charAt(0).toUpperCase()}
+            <div className="chat-header" style={{ justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <div className="chat-avatar">
+                  {usuarioEnPantalla?.charAt(0).toUpperCase()}
+                </div>
+                <span className="chat-header-name">{usuarioEnPantalla}</span>
               </div>
-              <span className="chat-header-name">{usuarioEnPantalla}</span>
+              <button 
+                className="chat-modal-close" 
+                onClick={() => {
+                  setConversacionActiva(null);
+                  setContactoProvisional(null);
+                }}
+                title="Mboty chat"
+              >
+                ✕
+              </button>
             </div>
 
             <div className="chat-messages-container">
