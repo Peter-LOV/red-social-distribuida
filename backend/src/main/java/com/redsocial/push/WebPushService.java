@@ -45,25 +45,33 @@ public class WebPushService {
     }
 
     void alNuevoPost(@ObservesAsync NuevoPostEvent evento) {
+        Log.info("==> [PUSH] Evento recibido para autorId: " + evento.autorId() + " (" + evento.autorNombre() + ")");
         try {
             String payload = json.writeValueAsString(Map.of(
                     "titulo", evento.autorNombre() + " publicó algo nuevo",
                     "cuerpo", evento.resumen(),
                     "url", "/post/" + evento.postId()));
 
-            for (var s : repo.destinatarios(evento.autorId())) {
+            var destinatarios = repo.destinatarios(evento.autorId());
+            Log.info("==> [PUSH] Destinatarios encontrados: " + destinatarios.size());
+
+            for (var s : destinatarios) {
                 try {
+                    Log.info("==> [PUSH] Enviando notificación a: " + s.endpoint());
                     var resp = push.send(new Notification(s.endpoint(), s.p256dh(), s.auth(), payload));
                     int codigo = resp.getStatusLine().getStatusCode();
+                    Log.info("==> [PUSH] Google FCM respondió con código HTTP: " + codigo);
+
                     if (codigo == 404 || codigo == 410) {
+                        Log.warn("==> [PUSH] Suscripción expirada/inválida. Eliminando de Neo4j.");
                         repo.eliminarSuscripcion(s.endpoint());
                     }
                 } catch (Exception e) {
-                    Log.warn("No se pudo enviar push a " + s.endpoint(), e);
+                    Log.error("==> [PUSH] Error enviando a " + s.endpoint(), e);
                 }
             }
         } catch (Exception e) {
-            Log.error("Error preparando la notificación", e);
+            Log.error("==> [PUSH] Error preparando la notificación", e);
         }
     }
 }
