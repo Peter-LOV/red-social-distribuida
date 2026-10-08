@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { api } from '../api/client';
+import { api , WS_URL } from '../api/client';
 import '../styles/chat.css';
 
 export function Chat() {
@@ -129,7 +129,7 @@ export function Chat() {
       return;
     }
 
-    const ws = new WebSocket(`ws://localhost:8080/ws/chat?token=${token}`);
+  const ws = new WebSocket(`${WS_URL}/ws/chat?token=${encodeURIComponent(token)}`);
     wsRef.current = ws;
 
     ws.onmessage = (evento) => {

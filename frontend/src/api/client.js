@@ -1,5 +1,8 @@
 export const API = import.meta.env.VITE_API_URL ?? 'http://localhost:8080';
 
+// El WebSocket usa el mismo host que la API: http -> ws, https -> wss.
+export const WS_URL = API.replace(/^http/, 'ws');
+
 export async function api(ruta, { metodo = 'GET', cuerpo, formData } = {}) {
   const token = localStorage.getItem('token');
   const headers = {};
