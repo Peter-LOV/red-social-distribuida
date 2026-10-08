@@ -36,6 +36,20 @@ services:
     volumes:
       - rustfs_data:/data
 
+  # --- Generación automática de llaves JWT (Persona D) ---
+  jwt-keys:
+    image: alpine:3
+    container_name: redsocial-jwt-keys
+    command: >
+      sh -c "apk add --no-cache openssl >/dev/null &&
+      if [ ! -f /keys/privateKey.pem ]; then
+      openssl genrsa -out /tmp/rsa.pem 2048 &&
+      openssl pkcs8 -topk8 -nocrypt -inform pem -in /tmp/rsa.pem -outform pem -out /keys/privateKey.pem &&
+      openssl rsa -pubout -in /tmp/rsa.pem -out /keys/publicKey.pem;
+      fi"
+    volumes:
+      - jwt_keys:/keys
+
   # --- Backend Quarkus (Persona D) ---
   backend:
     build:
@@ -56,14 +70,17 @@ services:
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY}
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY}
       VAPID_SUBJECT: ${VAPID_SUBJECT}
+      JWT_PUBLIC_KEY_PATH: file:/keys/publicKey.pem
+      JWT_PRIVATE_KEY_PATH: file:/keys/privateKey.pem
     depends_on:
       neo4j:
         condition: service_healthy
       rustfs:
         condition: service_started
+      jwt-keys:
+        condition: service_completed_successfully
     volumes:
-      - ./backend/src/main/resources/privateKey.pem:/privateKey.pem:ro
-      - ./backend/src/main/resources/publicKey.pem:/publicKey.pem:ro
+      - jwt_keys:/keys:ro
 
   # --- Frontend React (Persona D) ---
   frontend:
@@ -80,5 +97,6 @@ services:
       - backend
 
 volumes:
+  jwt_keys:
   neo4j_data:
   rustfs_data:
