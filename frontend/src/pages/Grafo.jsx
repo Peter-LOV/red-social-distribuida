@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import ForceGraph2D from 'react-force-graph-2d';
 import { useAuth } from '../auth/AuthContext';
+import { Avatar } from '../components/Avatar';
 import { mensajeAmigable } from '../services/posts';
-import { obtenerGrafo } from '../services/social';
+import { obtenerGrafo, obtenerAlcanzables } from '../services/social';
 import '../styles/posts.css';
 import '../styles/feed.css';
 import '../styles/synapse.css';
@@ -20,7 +21,9 @@ function colorDe(id = '') {
 // Pantalla del grafo social interactivo (Persona A)
 export function Grafo() {
   const { usuario } = useAuth();
+  const navigate = useNavigate();
   const [datos, setDatos] = useState(null);
+  const [alcanzables, setAlcanzables] = useState(null);
   const [error, setError] = useState('');
   const [hover, setHover] = useState(null);
   const contenedorRef = useRef(null);
@@ -30,6 +33,7 @@ export function Grafo() {
   const cargar = useCallback(() => {
     setError('');
     setDatos(null);
+    setAlcanzables(null);
     obtenerGrafo()
       .then((g) => {
         const nodos = (g.nodos || []).map((n) => ({ ...n, color: colorDe(n.id) }));
@@ -39,6 +43,9 @@ export function Grafo() {
       .catch((err) => {
         setError(mensajeAmigable(err, 'No pudimos cargar el grafo. Intenta nuevamente.'));
       });
+    obtenerAlcanzables()
+      .then((lista) => setAlcanzables(Array.isArray(lista) ? lista : []))
+      .catch(() => setAlcanzables([]));
   }, []);
 
   useEffect(() => {
@@ -92,11 +99,12 @@ export function Grafo() {
     [usuario?.id, hover],
   );
 
-  const alClicNodo = useCallback((node) => {
-    if (node?.id) {
-      window.location.href = `/perfil/${node.id}`;
-    }
-  }, []);
+  const alClicNodo = useCallback(
+    (node) => {
+      if (node?.id) navigate(`/perfil/${node.id}`);
+    },
+    [navigate],
+  );
 
   return (
     <main className="rs-contenedor rs-ancho rs-grafo-pagina">
@@ -161,6 +169,31 @@ export function Grafo() {
               backgroundColor="transparent"
             />
           </div>
+
+          <section className="rs-tarjeta rs-perfil-lista" style={{ marginTop: '1rem' }}>
+            <h2 style={{ margin: '0.75rem 0 0.5rem', fontSize: '1rem' }}>
+              Tu red alcanzable (hasta 3 saltos)
+            </h2>
+            <p className="rs-sug-nota" style={{ marginBottom: '0.75rem' }}>
+              Consulta Cypher con <code>[:SIGUE*1..3]</code>: personas a las que puedes llegar siguiendo la cadena de
+              follows.
+            </p>
+            {alcanzables === null && <p className="rs-sug-nota">Cargando…</p>}
+            {alcanzables?.length === 0 && (
+              <p className="rs-sug-nota">Aún no hay nadie alcanzable. Sigue a alguien para expandir tu red.</p>
+            )}
+            {alcanzables?.map((p) => (
+              <Link key={p.id} to={`/perfil/${p.id}`} className="rs-sug-fila rs-perfil-fila">
+                <Avatar nombre={p.nombre} tamano={40} />
+                <div className="rs-sug-info">
+                  <div className="rs-sug-nombre">{p.nombre}</div>
+                  <div className="rs-sug-via">
+                    {p.saltos === 1 ? '1 salto (lo sigues)' : `${p.saltos} saltos`}
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </section>
         </>
       )}
     </main>
