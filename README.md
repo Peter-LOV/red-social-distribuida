@@ -462,3 +462,68 @@ Estas secciones exige la actividad y se completarán conforme avance el proyecto
 - [ ] Endpoints completos del grafo social, posts, feed, chat y notificaciones
 - [ ] Diagrama de arquitectura definitivo en `docs/`
 - [ ] Instrucciones de ejecución con todo dockerizado
+
+## 17. Consultas Cypher (grafo social — Persona A)
+
+Implementadas en `GrafoRepository.java`. Detalle ampliado en [`docs/consultas-cypher-persona-a.md`](docs/consultas-cypher-persona-a.md).
+
+| # | Consulta | Niveles | Endpoint |
+|---|----------|---------|----------|
+| 1 | Seguidores | 1 | `GET /social/seguidores/{id}` |
+| 2 | Seguidos | 1 | `GET /social/seguidos/{id}` |
+| 3 | En común (patrón en V) | 2 | `GET /social/en-comun/{id}` |
+| 4 | **Sugerencias (amigos de amigos)** | **2** | `GET /social/sugerencias` |
+| 5 | **Alcanzables** `[:SIGUE*1..3]` | **1–3** | `GET /social/alcanzables` |
+| 6 | Estado de relación | 1 | `GET /social/estado/{id}` |
+| 7 | Grafo completo (nodos/enlaces) | — | `GET /social/grafo` |
+
+### Sugerencias (criterio de ranking)
+
+No son aleatorias: se recorre `(yo)-[:SIGUE]->(amigo)-[:SIGUE]->(candidato)`, se excluye a quien ya sigo, y se ordena por **cuántos de mis seguidos ya lo siguen** (`enComun`) y, como desempate, por **popularidad**. La respuesta incluye `via` (nombres puente) para mostrar *“Lo siguen Ana y Beto”*.
+
+```cypher
+MATCH (yo:Usuario {id: $id})-[:SIGUE]->(amigo:Usuario)-[:SIGUE]->(c:Usuario)
+WHERE c <> yo AND NOT (yo)-[:SIGUE]->(c)
+WITH c, collect(DISTINCT amigo.nombre) AS mediadores
+RETURN c.id AS id, c.nombre AS nombre,
+       size(mediadores) AS enComun,
+       mediadores[0..3] AS via,
+       COUNT { (c)<-[:SIGUE]-() } AS popularidad
+ORDER BY enComun DESC, popularidad DESC, nombre
+LIMIT 10
+```
+
+### Alcanzables (más de un nivel)
+
+```cypher
+MATCH p = (yo:Usuario {id: $id})-[:SIGUE*1..3]->(u:Usuario)
+WHERE u <> yo
+WITH u, min(length(p)) AS saltos
+RETURN u.id AS id, u.nombre AS nombre, saltos
+ORDER BY saltos, nombre
+LIMIT 50
+```
+
+### Endpoints REST del grafo (`SocialResource`)
+
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| POST | `/social/seguir/{id}` | Seguir |
+| DELETE | `/social/seguir/{id}` | Dejar de seguir |
+| GET | `/social/seguidores/{id}` | Lista de seguidores |
+| GET | `/social/seguidos/{id}` | Lista de seguidos |
+| GET | `/social/sugerencias` | Sugerencias del usuario autenticado |
+| GET | `/social/en-comun/{id}` | Seguidos en común |
+| GET | `/social/alcanzables` | Red a hasta 3 saltos |
+| GET | `/social/estado/{id}` | sigo / meSigue / contadores |
+| GET | `/social/grafo` | Nodos y enlaces para la UI |
+
+### Pantallas frontend (Persona A)
+
+| Ruta | Archivo | Función |
+|------|---------|---------|
+| `/login`, `/registro` | `Login.jsx`, `Registro.jsx` | Autenticación |
+| `/sugerencias` | `Sugerencias.jsx` | Personas sugeridas + seguir/dejar de seguir |
+| `/grafo` | `Grafo.jsx` | Force-graph interactivo |
+| `/perfil/:id` | `Perfil.jsx` | Perfil, tabs, editar si es propio |
+
