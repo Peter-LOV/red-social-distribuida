@@ -181,8 +181,8 @@ export function BarraNavegacion() {
 
   if (!usuario) return null;
 
-  const salir = () => {
-    logout();
+  const salir = async () => {
+    await logout();
     navigate('/login');
   };
 

@@ -1,10 +1,14 @@
+// Tomar el control de las pestañas abiertas en cuanto se instala o actualiza el Service Worker
+self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()));
+
 self.addEventListener('push', (event) => {
   let datos = {};
 
   if (event.data) {
     try {
       datos = event.data.json();
-    } catch (e) {
+    } catch {
       // Si el backend o las herramientas de Chrome mandan texto plano en lugar de JSON
       datos = {
         titulo: 'Nueva publicación',
@@ -34,21 +38,25 @@ self.addEventListener('push', (event) => {
 // Al hacer clic sobre el banner de Windows/Chrome, enfocar la app y navegar al post
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const urlDestino = event.notification.data?.url || '/';
+  const destino = new URL(event.notification.data?.url || '/', self.location.origin).href;
 
   event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((ventanas) => {
-      // Si la ventana ya existe, enfocarla y navegar
-      for (const v of ventanas) {
-        if ('focus' in v) {
-          v.navigate(urlDestino);
-          return v.focus();
+    (async () => {
+      const ventanas = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+
+      for (const ventana of ventanas) {
+        try {
+          // navigate() falla si este Service Worker todavía no controla la pestaña
+          const actual = ventana.url === destino ? ventana : await ventana.navigate(destino);
+          await (actual || ventana).focus();
+          return;
+        } catch {
+          // se intenta con la siguiente pestaña o se abre una nueva
         }
       }
-      // Si la app está cerrada, abrir una ventana nueva
-      if (clients.openWindow) {
-        return clients.openWindow(urlDestino);
-      }
-    })
+
+      // Si la app está cerrada (o no se pudo reutilizar ninguna pestaña), abrir una ventana nueva
+      await clients.openWindow(destino);
+    })()
   );
 });

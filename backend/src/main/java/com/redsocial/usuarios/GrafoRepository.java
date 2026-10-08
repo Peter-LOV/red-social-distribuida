@@ -80,8 +80,35 @@ public class GrafoRepository {
     /**
      * Sugerencias (2 niveles): yo -> amigo -> C, y yo no sigo a C.
      * Ranking: más seguidos míos que lo siguen primero; desempate por popularidad.
+     *
+     * Arranque en frío: si todavía no hay nadie a 2 saltos (usuario nuevo), se sugieren los
+     * usuarios con más seguidores a los que aún no sigo. Sigue siendo información del grafo
+     * (grado de entrada de SIGUE), nunca un orden aleatorio.
      */
     public List<Sugerencia> sugerencias(String yo) {
+        List<Sugerencia> porRed = sugerenciasPorRed(yo);
+        return porRed.isEmpty() ? sugerenciasPorPopularidad(yo) : porRed;
+    }
+
+    private List<Sugerencia> sugerenciasPorPopularidad(String yo) {
+        try (Session s = driver.session()) {
+            return s.executeRead(tx -> tx.run("""
+                    MATCH (yo:Usuario {id: $id}), (c:Usuario)
+                    WHERE c <> yo AND NOT (yo)-[:SIGUE]->(c)
+                    RETURN c.id AS id, c.nombre AS nombre,
+                           COUNT { (c)<-[:SIGUE]-() } AS popularidad
+                    ORDER BY popularidad DESC, nombre
+                    LIMIT 10
+                    """, Map.of("id", yo)).list(r -> new Sugerencia(
+                    r.get("id").asString(),
+                    r.get("nombre").asString(),
+                    0,
+                    List.of(),
+                    r.get("popularidad").asLong())));
+        }
+    }
+
+    private List<Sugerencia> sugerenciasPorRed(String yo) {
         try (Session s = driver.session()) {
             return s.executeRead(tx -> tx.run("""
                     MATCH (yo:Usuario {id: $id})-[:SIGUE]->(amigo:Usuario)-[:SIGUE]->(c:Usuario)

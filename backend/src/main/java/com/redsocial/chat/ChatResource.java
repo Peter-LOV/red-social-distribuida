@@ -28,8 +28,9 @@ public class ChatResource {
         if (miId.equals(req.usuarioId())) {
             return Response.status(400).entity(Map.of("error", "No puedes iniciar un chat contigo mismo")).build();
         }
-        String convId = repo.obtenerOCrearConversacion(miId, req.usuarioId());
-        return Response.ok(Map.of("conversacionId", convId)).build();
+        return repo.obtenerOCrearConversacion(miId, req.usuarioId())
+                .map(convId -> Response.ok(Map.of("conversacionId", convId)).build())
+                .orElseGet(() -> Response.status(404).entity(Map.of("error", "Usuario no encontrado")).build());
     }
 
     @GET

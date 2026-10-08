@@ -2,7 +2,6 @@ package com.redsocial.push;
 
 import org.neo4j.driver.Driver;
 import org.neo4j.driver.Session;
-import org.neo4j.driver.Value;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -30,6 +29,17 @@ public class PushRepository {
         }
     }
 
+    /** Baja pedida por el usuario: solo borra la suscripción si es suya. */
+    public void eliminarSuscripcionDe(String usuarioId, String endpoint) {
+        try (Session s = driver.session()) {
+            s.executeWrite(tx -> tx.run("""
+                    MATCH (:Usuario {id: $id})-[:TIENE_SUSCRIPCION]->(s:Suscripcion {endpoint: $endpoint})
+                    DETACH DELETE s
+                    """, Map.of("id", usuarioId, "endpoint", endpoint)).consume());
+        }
+    }
+
+    /** Uso interno: el servicio push respondió 404/410, la suscripción ya no existe. */
     public void eliminarSuscripcion(String endpoint) {
         try (Session s = driver.session()) {
             s.executeWrite(tx -> tx.run("""

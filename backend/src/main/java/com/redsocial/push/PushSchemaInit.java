@@ -16,7 +16,7 @@ public class PushSchemaInit {
 
     void alArrancar(@Observes StartupEvent ev) {
         try (Session s = driver.session()) {
-            s.run("CREATE CONSTRAINT suscripcion_endpoint IF NOT EXISTS FOR (s:Suscripcion) REQUIRE s.endpoint IS UNIQUE");
+            s.run("CREATE CONSTRAINT suscripcion_endpoint IF NOT EXISTS FOR (s:Suscripcion) REQUIRE s.endpoint IS UNIQUE").consume();
         }
     }
 }
