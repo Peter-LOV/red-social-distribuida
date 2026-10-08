@@ -26,6 +26,7 @@ replay_pid*
 # Entorno y secretos
 .env
 *.pem
+vapid-keys/
 
 # Frontend (React)
 node_modules/

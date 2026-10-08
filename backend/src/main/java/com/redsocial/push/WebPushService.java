@@ -6,6 +6,7 @@ import io.quarkus.logging.Log;
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.event.ObservesAsync;
 import jakarta.inject.Inject;
+import nl.martijndwars.webpush.Encoding;
 import nl.martijndwars.webpush.Notification;
 import nl.martijndwars.webpush.PushService;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
@@ -19,11 +20,8 @@ import java.util.Map;
 @ApplicationScoped
 public class WebPushService {
 
-    @ConfigProperty(name = "app.vapid.public-key")
-    String clavePublica;
-
-    @ConfigProperty(name = "app.vapid.private-key")
-    String clavePrivada;
+    @Inject
+    ClavesVapid claves;
 
     @ConfigProperty(name = "app.vapid.subject")
     String asunto;
@@ -41,7 +39,7 @@ public class WebPushService {
         if (Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) == null) {
             Security.addProvider(new BouncyCastleProvider());
         }
-        push = new PushService(clavePublica, clavePrivada, asunto);
+        push = new PushService(claves.publica(), claves.privada(), asunto);
     }
 
     void alNuevoPost(@ObservesAsync NuevoPostEvent evento) {
@@ -58,9 +56,11 @@ public class WebPushService {
             for (var s : destinatarios) {
                 try {
                     Log.info("==> [PUSH] Enviando notificación a: " + s.endpoint());
-                    var resp = push.send(new Notification(s.endpoint(), s.p256dh(), s.auth(), payload));
+                    // aes128gcm es la codificación estándar (RFC 8291) y la aceptan Chrome, Firefox, Edge y Safari
+                    var resp = push.send(
+                            new Notification(s.endpoint(), s.p256dh(), s.auth(), payload), Encoding.AES128GCM);
                     int codigo = resp.getStatusLine().getStatusCode();
-                    Log.info("==> [PUSH] Google FCM respondió con código HTTP: " + codigo);
+                    Log.info("==> [PUSH] El servicio push respondió con código HTTP: " + codigo);
 
                     if (codigo == 404 || codigo == 410) {
                         Log.warn("==> [PUSH] Suscripción expirada/inválida. Eliminando de Neo4j.");

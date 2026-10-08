@@ -2,6 +2,7 @@ package com.redsocial.chat;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.quarkus.logging.Log;
 import io.quarkus.websockets.next.*;
 import io.smallrye.common.annotation.Blocking;
 import io.smallrye.jwt.auth.principal.JWTParser;
@@ -11,11 +12,14 @@ import jakarta.inject.Inject;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 @WebSocket(path = "/ws/chat")
 public class ChatSocket {
+
+    private static final int MAX_TEXTO = 2000;
 
     // userId -> conjunto de conexiones abiertas (el usuario puede tener varias pestañas)
     private static final Map<String, Set<WebSocketConnection>> EN_LINEA = new ConcurrentHashMap<>();
@@ -72,15 +76,40 @@ public class ChatSocket {
         String yo = USUARIO_DE.get(conexion.id());
         if (yo == null) return;
 
-        JsonNode nodo = json.readTree(mensaje);
-        if (!nodo.has("conversacionId") || !nodo.has("texto")) return;
+        JsonNode nodo;
+        try {
+            nodo = json.readTree(mensaje);
+        } catch (Exception e) {
+            enviarError(conexion, "Formato de mensaje inválido");
+            return;
+        }
+        if (nodo == null || !nodo.hasNonNull("conversacionId") || !nodo.hasNonNull("texto")) {
+            enviarError(conexion, "Formato de mensaje inválido");
+            return;
+        }
 
         String conv = nodo.get("conversacionId").asText();
         String texto = nodo.get("texto").asText().trim();
         if (texto.isEmpty()) return;
+        if (texto.length() > MAX_TEXTO) {
+            enviarError(conexion, "El mensaje no puede superar los " + MAX_TEXTO + " caracteres");
+            return;
+        }
 
-        // 1. Guardar en Neo4j mediante el repositorio
-        MensajeGuardado guardado = repo.guardarMensaje(yo, conv, texto);
+        // 1. Guardar en Neo4j mediante el repositorio (vacío = no participo en esa conversación)
+        Optional<MensajeGuardado> resultado;
+        try {
+            resultado = repo.guardarMensaje(yo, conv, texto);
+        } catch (Exception e) {
+            Log.error("==> [CHAT] No se pudo guardar el mensaje", e);
+            enviarError(conexion, "No se pudo guardar el mensaje. Intenta nuevamente.");
+            return;
+        }
+        if (resultado.isEmpty()) {
+            enviarError(conexion, "No participas en esta conversación");
+            return;
+        }
+        MensajeGuardado guardado = resultado.get();
 
         // 2. Preparar el payload de salida en JSON
         String salida = json.writeValueAsString(Map.of(
@@ -100,7 +129,20 @@ public class ChatSocket {
     private void enviarA(String userId, String payload) {
         Set<WebSocketConnection> conexiones = EN_LINEA.getOrDefault(userId, Set.of());
         for (WebSocketConnection c : conexiones) {
-            c.sendTextAndAwait(payload);
+            try {
+                c.sendTextAndAwait(payload);
+            } catch (Exception e) {
+                // Una pestaña que se cerró a medias no debe impedir la entrega a las demás
+                Log.debug("==> [CHAT] No se pudo entregar a la conexión " + c.id());
+            }
+        }
+    }
+
+    private void enviarError(WebSocketConnection conexion, String mensaje) {
+        try {
+            conexion.sendTextAndAwait(json.writeValueAsString(Map.of("tipo", "error", "error", mensaje)));
+        } catch (Exception e) {
+            Log.debug("==> [CHAT] No se pudo avisar del error a la conexión " + conexion.id());
         }
     }
 

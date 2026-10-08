@@ -67,9 +67,12 @@ services:
       S3_ACCESS_KEY: ${S3_ACCESS_KEY}
       S3_SECRET_KEY: ${S3_SECRET_KEY}
       S3_BUCKET: posts-media
-      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY}
-      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY}
-      VAPID_SUBJECT: ${VAPID_SUBJECT}
+      # Web Push: las llaves son opcionales. Si se dejan vacías, el backend genera un par
+      # en el primer arranque y lo conserva en el volumen vapid_keys.
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:admin@redsocial.local}
+      VAPID_KEYS_DIR: /vapid
       JWT_PUBLIC_KEY_PATH: file:/keys/publicKey.pem
       JWT_PRIVATE_KEY_PATH: file:/keys/privateKey.pem
     depends_on:
@@ -81,6 +84,7 @@ services:
         condition: service_completed_successfully
     volumes:
       - jwt_keys:/keys:ro
+      - vapid_keys:/vapid
 
   # --- Frontend React (Persona D) ---
   frontend:
@@ -98,5 +102,6 @@ services:
 
 volumes:
   jwt_keys:
+  vapid_keys:
   neo4j_data:
   rustfs_data:

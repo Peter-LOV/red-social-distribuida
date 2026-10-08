@@ -229,14 +229,16 @@ export function Perfil() {
             <Link to="/grafo" className="rs-boton rs-boton--fantasma rs-boton--chico">
               Ver grafo
             </Link>
-            {/* Botón para enviar mensaje al perfil visto */}
-                <button
-                  type="button"
-                  className="rs-boton rs-boton--fantasma rs-boton--chico"
-                  onClick={() => irAChat(perfil)}
-                >
-                  Enviar mensaje
-                </button>
+            {/* Botón para enviar mensaje al perfil visto (no tiene sentido en mi propio perfil) */}
+            {!esMio && (
+              <button
+                type="button"
+                className="rs-boton rs-boton--fantasma rs-boton--chico"
+                onClick={() => irAChat(perfil)}
+              >
+                Enviar mensaje
+              </button>
+            )}
           </div>
         </div>
       </section>

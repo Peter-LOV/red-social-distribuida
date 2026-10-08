@@ -7,6 +7,7 @@ import org.neo4j.driver.Session;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 @ApplicationScoped
@@ -18,31 +19,36 @@ public class ChatRepository {
     /**
      * Obtiene o crea la conversación entre dos personas.
      * Si ya existe una conversación que los une, la reutiliza (MERGE).
+     * Devuelve vacío si alguno de los dos usuarios no existe.
      */
-    public String obtenerOCrearConversacion(String yo, String otro) {
+    public Optional<String> obtenerOCrearConversacion(String yo, String otro) {
         String nuevoId = UUID.randomUUID().toString();
         try (Session s = driver.session()) {
-            return s.executeWrite(tx -> tx.run("""
-                    MATCH (a:Usuario {id: $yo}), (b:Usuario {id: $otro})
-                    WHERE a <> b
-                    MERGE (a)-[:PARTICIPA_EN]->(c:Conversacion)<-[:PARTICIPA_EN]-(b)
-                    ON CREATE SET c.id = $nuevoId, c.creadaEn = datetime()
-                    RETURN c.id AS id
-                    """, Map.of("yo", yo, "otro", otro, "nuevoId", nuevoId))
-                    .single()
-                    .get("id")
-                    .asString());
+            return s.executeWrite(tx -> {
+                var res = tx.run("""
+                        MATCH (a:Usuario {id: $yo}), (b:Usuario {id: $otro})
+                        WHERE a <> b
+                        MERGE (a)-[:PARTICIPA_EN]->(c:Conversacion)<-[:PARTICIPA_EN]-(b)
+                        ON CREATE SET c.id = $nuevoId, c.creadaEn = datetime()
+                        RETURN c.id AS id
+                        """, Map.of("yo", yo, "otro", otro, "nuevoId", nuevoId));
+                if (!res.hasNext()) {
+                    return Optional.<String>empty();
+                }
+                return Optional.of(res.next().get("id").asString());
+            });
         }
     }
 
     /**
      * Guarda un mensaje y devuelve a quién va dirigido.
+     * Devuelve vacío si la conversación no existe o el usuario no participa en ella.
      */
-    public MensajeGuardado guardarMensaje(String yo, String convId, String texto) {
+    public Optional<MensajeGuardado> guardarMensaje(String yo, String convId, String texto) {
         String mensajeId = UUID.randomUUID().toString();
         try (Session s = driver.session()) {
             return s.executeWrite(tx -> {
-                var record = tx.run("""
+                var res = tx.run("""
                         MATCH (u:Usuario {id: $yo})-[:PARTICIPA_EN]->(c:Conversacion {id: $conv})
                         CREATE (m:Mensaje {id: $id, texto: $texto, fecha: datetime()})
                         CREATE (c)-[:CONTIENE]->(m)
@@ -51,14 +57,16 @@ public class ChatRepository {
                         MATCH (otro:Usuario)-[:PARTICIPA_EN]->(c)
                         WHERE otro.id <> u.id
                         RETURN m.id AS id, toString(m.fecha) AS fecha, otro.id AS destinatarioId
-                        """, Map.of("yo", yo, "conv", convId, "id", mensajeId, "texto", texto))
-                        .single();
-
-                return new MensajeGuardado(
+                        """, Map.of("yo", yo, "conv", convId, "id", mensajeId, "texto", texto));
+                if (!res.hasNext()) {
+                    return Optional.<MensajeGuardado>empty();
+                }
+                var record = res.next();
+                return Optional.of(new MensajeGuardado(
                         record.get("id").asString(),
                         record.get("fecha").asString(),
                         record.get("destinatarioId").asString()
-                );
+                ));
             });
         }
     }
@@ -84,7 +92,7 @@ public class ChatRepository {
     }
 
     /**
-     * Lista mis conversaciones con el último mensaje enviado.
+     * Lista mis conversaciones con el último mensaje enviado (la más reciente primero).
      */
     public List<ConversacionResumen> misConversaciones(String yo) {
         try (Session s = driver.session()) {
@@ -97,6 +105,7 @@ public class ChatRepository {
                     RETURN c.id AS id, otro.id AS otroId, otro.nombre AS otroNombre,
                            ultimo.texto AS ultimoTexto, toString(ultimo.fecha) AS ultimaFecha,
                            ultimo.id AS ultimoMensajeId, ultimoAutor.id AS ultimoAutorId
+                    ORDER BY coalesce(ultimo.fecha, c.creadaEn) DESC
                     """, Map.of("yo", yo))
                     .list(r -> new ConversacionResumen(
                             r.get("id").asString(),

@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { api } from '../api/client';
+import { desvincularNotificaciones, sincronizarNotificaciones } from '../push';
 
 const AuthContext = createContext(null);
 
@@ -11,7 +12,10 @@ export function AuthProvider({ children }) {
     const token = localStorage.getItem('token');
     if (token) {
       api('/usuarios/me')
-        .then(setUsuario)
+        .then((u) => {
+          setUsuario(u);
+          sincronizarNotificaciones();
+        })
         .catch(() => {
           localStorage.removeItem('token');
         })
@@ -28,6 +32,8 @@ export function AuthProvider({ children }) {
     });
     localStorage.setItem('token', data.token);
     setUsuario(data.usuario);
+    // Si este navegador ya dio permiso, la suscripción push pasa a ser de quien acaba de entrar
+    sincronizarNotificaciones();
     return data;
   };
 
@@ -41,7 +47,9 @@ export function AuthProvider({ children }) {
     return data;
   };
 
-  const logout = () => {
+  const logout = async () => {
+    // Mientras el token todavía sirve: este navegador deja de recibir los avisos de esta cuenta
+    await desvincularNotificaciones();
     localStorage.removeItem('token');
     setUsuario(null);
   };
