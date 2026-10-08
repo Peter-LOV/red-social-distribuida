@@ -13,17 +13,17 @@ Proyecto de la asignatura Sistemas Distribuidos.
 3. [Arquitectura](#3-arquitectura)
 4. [Tecnologías](#4-tecnologías)
 5. [Requisitos previos](#5-requisitos-previos)
-6. [Puesta en marcha (primera vez)](#6-puesta-en-marcha-primera-vez)
-7. [Uso diario](#7-uso-diario)
-8. [Variables de entorno](#8-variables-de-entorno)
-9. [Puertos usados](#9-puertos-usados)
-10. [Estructura del repositorio](#10-estructura-del-repositorio)
-11. [API REST (endpoints actuales)](#11-api-rest-endpoints-actuales)
-12. [Modelo del grafo](#12-modelo-del-grafo)
-13. [Flujo de trabajo en Git](#13-flujo-de-trabajo-en-git)
-14. [Solución de problemas](#14-solución-de-problemas)
-15. [Decisiones técnicas](#15-decisiones-técnicas)
-16. [Secciones pendientes](#16-secciones-pendientes)
+6. [Puesta en marcha con Docker](#6-puesta-en-marcha-con-docker) ⭐ Recomendado
+7. [Puesta en marcha (modo dev local)](#7-puesta-en-marcha-modo-dev-local)
+8. [Uso diario](#8-uso-diario)
+9. [Variables de entorno](#9-variables-de-entorno)
+10. [Puertos usados](#10-puertos-usados)
+11. [Estructura del repositorio](#11-estructura-del-repositorio)
+12. [API REST (endpoints actuales)](#12-api-rest-endpoints-actuales)
+13. [Modelo del grafo](#13-modelo-del-grafo)
+14. [Flujo de trabajo en Git](#14-flujo-de-trabajo-en-git)
+15. [Solución de problemas](#15-solución-de-problemas)
+16. [Decisiones técnicas](#16-decisiones-técnicas)
 
 ---
 
@@ -46,13 +46,13 @@ Proyecto de la asignatura Sistemas Distribuidos.
 - [x] Backend base con Quarkus
 - [x] Registro e inicio de sesión (bcrypt + JWT)
 - [x] Perfiles de usuario (consultar y editar)
-- [ ] Grafo social: seguir, seguidores, seguidos y sugerencias
-- [ ] Publicaciones con imagen en S3
-- [ ] Feed personalizado y reacciones
-- [ ] Chat en tiempo real (WebSocket)
-- [ ] Notificaciones Web Push
-- [ ] Frontend React
-- [ ] Dockerización completa (backend y frontend en contenedores)
+- [x] Grafo social: seguir, seguidores, seguidos y sugerencias
+- [x] Publicaciones con imagen en S3
+- [x] Feed personalizado y reacciones
+- [x] Chat en tiempo real (WebSocket)
+- [x] Notificaciones Web Push
+- [x] Frontend React
+- [x] Dockerización completa (backend y frontend en contenedores)
 
 ---
 
@@ -60,7 +60,7 @@ Proyecto de la asignatura Sistemas Distribuidos.
 
 ```text
                      ┌─────────────┐
-                     │    React    │   (pendiente)
+                     │    React    │
                      └──────┬──────┘
                             │ REST / WebSocket
                      ┌──────▼──────┐
@@ -75,7 +75,7 @@ Proyecto de la asignatura Sistemas Distribuidos.
                   │        │ │ Storage (S3) │
                   └────────┘ └──────────────┘
                          │
-                     Web Push (pendiente)
+                     Web Push (VAPID)
                          │
                   ┌──────▼──────┐
                   │   Usuario   │
@@ -90,8 +90,6 @@ Proyecto de la asignatura Sistemas Distribuidos.
 | Mensajería bidireccional | WebSocket | Quarkus |
 | Notificaciones fuera de la app | Web Push | Quarkus + Service Worker |
 | Despliegue reproducible | Contenedores | Docker Compose |
-
-> El diagrama definitivo se guardará en `docs/` y debe reflejar lo realmente implementado.
 
 ---
 
@@ -112,418 +110,262 @@ Proyecto de la asignatura Sistemas Distribuidos.
 
 ## 5. Requisitos previos
 
-Instala esto **antes** de clonar el proyecto. Cada fila indica cómo comprobar que quedó bien.
+**Opción A - Docker (Recomendado):**
+- Solo necesitas Docker Desktop instalado
+- Ver guía completa en [README-DOCKER.md](README-DOCKER.md)
 
-| Herramienta | Versión | Cómo comprobarlo | Dónde conseguirlo |
-|---|---|---|---|
-| **Git for Windows** | cualquiera reciente | `git --version` | https://git-scm.com |
-| **Docker Desktop** | cualquiera reciente | `docker --version` y `docker compose version` | https://www.docker.com/products/docker-desktop |
-| **JDK 21 (Temurin)** | **21 exactamente** | `java -version` debe decir `21.x` | `winget install EclipseAdoptium.Temurin.21.JDK` |
-| **Node.js** | 20 o superior (solo para el frontend) | `node --version` | https://nodejs.org |
-
-Notas importantes:
-
-- **Docker Desktop debe estar abierto y corriendo** (ícono de la ballena en la barra de tareas) antes de ejecutar cualquier comando `docker`.
-- **Usa Java 21, no otra versión.** Java 24 y otras versiones intermedias no son LTS y pueden dar errores raros con Quarkus. Si tienes varias versiones instaladas, mira la sección [Solución de problemas](#14-solución-de-problemas).
-- Maven **no** hace falta instalarlo: el proyecto incluye `mvnw` (Maven Wrapper) que lo descarga solo.
-- `openssl`, necesario para generar las llaves JWT, viene incluido con Git for Windows.
-- Los comandos de este documento son para **PowerShell de Windows**.
+**Opción B - Modo dev local:**
+- Git for Windows
+- Docker Desktop
+- JDK 21 (Temurin)
+- Node.js 20+
 
 ---
 
-## 6. Puesta en marcha (primera vez)
+## 6. Puesta en marcha con Docker ⭐
 
-Sigue los pasos **en orden**. Todos los comandos se ejecutan desde la raíz del repositorio, salvo que se indique otra carpeta.
+Esta es la forma más rápida de probar el proyecto sin instalar dependencias.
 
-### Paso 1. Clonar el repositorio
+1. **Clonar el repositorio:**
+   ```powershell
+   git clone https://github.com/Peter-LOV/red-social-distribuida.git
+   cd red-social-distribuida
+   ```
+
+2. **Configurar credenciales:**
+   ```powershell
+   Copy-Item .env.example .env
+   notepad .env
+   ```
+   Cambia `NEO4J_PASSWORD`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` y las llaves VAPID.
+
+3. **Levantar todo:**
+   ```powershell
+   docker compose up -d --build
+   ```
+
+4. **Acceder:**
+   - Frontend: http://localhost:80
+   - Swagger: http://localhost:8080/q/swagger-ui
+   - Neo4j: http://localhost:7474
+
+Para instrucciones detalladas, ver [README-DOCKER.md](README-DOCKER.md).
+
+---
+
+## 7. Puesta en marcha (modo dev local)
+
+Si eres desarrollador y quieres recarga en caliente (hot reload):
+
+### Paso 1: Clonar y configurar
 
 ```powershell
-git clone https://github.com/USUARIO/red-social-distribuida.git
+git clone https://github.com/Peter-LOV/red-social-distribuida.git
 cd red-social-distribuida
-```
-
-> Reemplaza la URL por la del repositorio real.
-
-### Paso 2. Verificar que usas Java 21
-
-```powershell
-java -version
-```
-
-Si no dice `21.x`, usa este comando (ajusta el nombre de la carpeta a la versión instalada en `C:\Program Files\Eclipse Adoptium\`):
-
-```powershell
-$env:JAVA_HOME = "C:\Program Files\Eclipse Adoptium\jdk-21.0.12.1-hotspot"
-$env:Path = "$env:JAVA_HOME\bin;$env:Path"
-java -version
-```
-
-Este cambio solo vale para la terminal actual: hay que repetirlo cada vez que abras una nueva.
-
-### Paso 3. Crear el archivo `.env`
-
-El `.env` guarda las claves de tu entorno y **nunca se sube a Git**. Cada integrante crea el suyo y puede poner valores distintos.
-
-```powershell
 Copy-Item .env.example .env
 notepad .env
 ```
 
-Cambia estos valores por los tuyos (**mínimo 8 caracteres, solo letras y números, sin comillas ni espacios**):
+Cambia las credenciales en `.env` y cópialo a `backend/.env`.
 
-```text
-NEO4J_PASSWORD=TuClaveNeo4j2026
-S3_ACCESS_KEY=tuusuarios3
-S3_SECRET_KEY=TuClaveSecretaS3Larga
-```
-
-Luego copia el archivo a la carpeta del backend, porque el backend lo lee desde ahí cuando corre en tu PC:
+### Paso 2: Verificar Java 21
 
 ```powershell
-Copy-Item .env backend\.env
+java -version
 ```
 
-### Paso 4. Levantar Neo4j y el almacenamiento S3
+Si no dice `21.x`, ajusta `JAVA_HOME`:
+```powershell
+$env:JAVA_HOME = "C:\Program Files\Eclipse Adoptium\jdk-21.0.12.1-hotspot"
+$env:Path = "$env:JAVA_HOME\bin;$env:Path"
+```
+
+### Paso 3: Levantar infraestructura
 
 ```powershell
 docker compose up -d
-docker compose ps
 ```
 
-La primera vez descarga las imágenes y puede tardar unos minutos. Después, `docker compose ps` debe mostrar `redsocial-neo4j` y `redsocial-rustfs` en estado *running* (Neo4j puede tardar 30 segundos en pasar a *healthy*).
-
-Comprueba que responden:
-
-- Neo4j Browser: http://localhost:7474 → usuario `neo4j` y tu `NEO4J_PASSWORD`.
-- Consola de almacenamiento: http://localhost:9001 → usuario `S3_ACCESS_KEY` y contraseña `S3_SECRET_KEY`.
-
-### Paso 5. Generar las llaves JWT
-
-El login entrega un token firmado con una llave privada RSA. Cada integrante genera las suyas (están en `.gitignore`):
+### Paso 4: Generar llaves JWT
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\generate-jwt-keys.ps1
 ```
 
-Debe mostrar `Llaves generadas en ...`. Crea `privateKey.pem` y `publicKey.pem` en `backend\src\main\resources`.
-
-### Paso 6. Arrancar el backend
+### Paso 5: Arrancar backend
 
 ```powershell
 cd backend
 .\mvnw quarkus:dev
 ```
 
-- La primera vez descarga dependencias y tarda varios minutos. Es normal.
-- Si pregunta por compartir datos anónimos de uso, responde `n`.
-- Está listo cuando aparece `Listening on: http://localhost:8080`.
-- **Deja esa terminal abierta.** Con `Ctrl+C` se detiene el backend.
-- En modo dev, cada cambio que guardes en un archivo Java se recarga solo.
+### Paso 6: Arrancar frontend (otra terminal)
 
-### Paso 7. Probar que todo funciona
-
-1. Abre Swagger UI: http://localhost:8080/q/swagger-ui
-2. Ejecuta `POST /auth/registro` con este cuerpo (**Try it out** y luego **Execute**):
-
-   ```json
-   {
-     "nombre": "Ana",
-     "email": "ana@correo.com",
-     "password": "clave1234"
-   }
-   ```
-
-   Debe responder **201** con un `token` y los datos del usuario.
-3. Copia el `token` (sin comillas), pulsa **Authorize** (candado), pégalo y confirma.
-4. Ejecuta `GET /usuarios/me`: debe devolver tu perfil con código **200**.
-5. En Neo4j Browser ejecuta `MATCH (u:Usuario) RETURN u`: debe aparecer tu usuario.
-
-Si los cinco puntos funcionan, tu entorno está listo.
+```powershell
+cd frontend
+npm run dev
+```
 
 ---
 
-## 7. Uso diario
+## 8. Uso diario
 
-Cuando ya hiciste la puesta en marcha una vez, cada día solo necesitas:
-
-```powershell
-# 1. Abrir Docker Desktop y esperar a que inicie
-
-# 2. Traer los cambios del equipo
-git checkout main
-git pull
-
-# 3. Levantar la infraestructura (desde la raíz)
-docker compose up -d
-
-# 4. Arrancar el backend (con Java 21 activo en esa terminal)
-cd backend
-.\mvnw quarkus:dev
-```
-
-Para apagar todo al terminar:
+### Con Docker:
 
 ```powershell
-# Detener el backend: Ctrl+C en su terminal
-docker compose stop        # apaga los contenedores y conserva los datos
+docker compose up -d      # Levantar
+docker compose down       # Detener
 ```
 
-| Comando | Efecto |
-|---|---|
-| `docker compose stop` | Apaga los contenedores. Los datos se conservan |
-| `docker compose up -d` | Vuelve a encenderlos |
-| `docker compose down` | Elimina los contenedores. Los datos se conservan (volúmenes) |
-| `docker compose down -v` | Elimina contenedores **y todos los datos** (usuarios, archivos). Úsalo solo para empezar de cero |
+### Modo dev local:
+
+```powershell
+docker compose up -d              # Infraestructura
+cd backend && .\mvnw quarkus:dev # Backend
+cd frontend && npm run dev          # Frontend
+```
 
 ---
 
-## 8. Variables de entorno
-
-Se definen en `.env` (raíz) y se copian a `backend/.env`. El archivo `.env.example` es la plantilla.
+## 9. Variables de entorno
 
 | Variable | Descripción | Ejemplo |
 |---|---|---|
-| `NEO4J_PASSWORD` | Contraseña del usuario de Neo4j. Mínimo 8 caracteres | `TuClaveNeo4j2026` |
-| `NEO4J_URI` | Dirección Bolt de Neo4j | `bolt://localhost:7687` |
-| `NEO4J_USER` | Usuario de Neo4j | `neo4j` |
-| `S3_ACCESS_KEY` | Usuario del almacenamiento S3. Mínimo 8 caracteres | `tuusuarios3` |
-| `S3_SECRET_KEY` | Contraseña del almacenamiento S3. Mínimo 8 caracteres | `TuClaveSecretaS3Larga` |
-| `S3_BUCKET` | Nombre del bucket para las imágenes de las publicaciones | `posts-media` |
-| `S3_ENDPOINT` | Dirección de la API S3 | `http://localhost:9000` |
-
-Reglas para las claves: solo letras y números (evita comillas, espacios y los símbolos `$ # \`), y no uses `neo4j` ni `rustfsadmin` como contraseña.
-
-> Las llaves VAPID de Web Push se agregarán aquí cuando se implemente esa funcionalidad.
+| `NEO4J_PASSWORD` | Contraseña de Neo4j (mínimo 8 caracteres) | `TuClaveNeo4j2026` |
+| `S3_ACCESS_KEY` | Usuario S3 (mínimo 8 caracteres) | `tuusuarios3` |
+| `S3_SECRET_KEY` | Contraseña S3 (mínimo 8 caracteres) | `TuClaveSecretaLarga` |
+| `VAPID_PUBLIC_KEY` | Clave pública VAPID (generada con `npx web-push generate-vapid-keys`) | `BBtMvrOmBrpWspD1iLgb...` |
+| `VAPID_PRIVATE_KEY` | Clave privada VAPID | `KBEzGlWoyNi85Je2419Tw...` |
+| `VAPID_SUBJECT` | Subject VAPID | `mailto:admin@redsocial.local` |
 
 ---
 
-## 9. Puertos usados
-
-Si alguno está ocupado por otro programa, el servicio no arrancará (ver [Solución de problemas](#14-solución-de-problemas)).
+## 10. Puertos usados
 
 | Puerto | Servicio |
 |---|---|
-| 8080 | Backend Quarkus y Swagger UI |
+| 80 | Frontend (Docker) |
+| 8080 | Backend / Swagger |
 | 7474 | Neo4j Browser |
-| 7687 | Neo4j (protocolo Bolt, lo usa el backend) |
+| 7687 | Neo4j Bolt |
 | 9000 | API S3 (RustFS) |
-| 9001 | Consola web de RustFS |
-| 5173 | Frontend React en desarrollo (pendiente) |
+| 9001 | Consola RustFS |
+| 5173 | Frontend (modo dev) |
 
 ---
 
-## 10. Estructura del repositorio
+## 11. Estructura del repositorio
 
 ```text
 red-social-distribuida/
-├── backend/                     Proyecto Quarkus (Java 21, Maven)
+├── backend/                     Quarkus (Java 21, Maven)
 │   └── src/main/java/com/redsocial/
-│       ├── common/              Código compartido (constraints de Neo4j)
-│       ├── usuarios/            Registro, login, perfiles y grafo social
-│       ├── posts/               Publicaciones, S3, feed y reacciones
-│       ├── chat/                Mensajería con WebSocket
-│       └── push/                Notificaciones Web Push
-├── frontend/                    Aplicación React (pendiente)
-├── scripts/                     Scripts de ayuda (llaves JWT)
-├── docs/                        Diagrama de arquitectura y documentación
-├── docker-compose.yml           Neo4j + almacenamiento S3
-├── .env.example                 Plantilla de variables de entorno
-└── README.md
+│       ├── common/              Código compartido
+│       ├── usuarios/            Registro, login, perfiles, grafo
+│       ├── posts/               Publicaciones, S3, feed
+│       ├── chat/                WebSocket
+│       └── push/                Web Push
+├── frontend/                    React (Vite)
+├── scripts/                     Scripts de ayuda
+├── docs/                        Documentación
+├── docker-compose.yml           Todos los servicios
+├── README.md                    Este archivo
+└── README-DOCKER.md            Guía específica de Docker
 ```
 
 ---
 
-## 11. API REST (endpoints actuales)
+## 12. API REST (endpoints actuales)
 
-La documentación interactiva está en http://localhost:8080/q/swagger-ui cuando el backend corre.
+Documentación interactiva: http://localhost:8080/q/swagger-ui
 
 | Método | Ruta | Auth | Descripción |
 |---|---|---|---|
-| `POST` | `/auth/registro` | No | Crea un usuario y devuelve un token JWT |
-| `POST` | `/auth/login` | No | Valida credenciales y devuelve un token JWT |
-| `GET` | `/usuarios/me` | Sí | Perfil del usuario autenticado |
-| `PUT` | `/usuarios/me` | Sí | Edita nombre y biografía |
-| `GET` | `/usuarios/{id}` | Sí | Perfil de cualquier usuario |
-
-Las rutas protegidas exigen la cabecera `Authorization: Bearer <token>`. Sin token, el servidor responde `401`.
-
-Códigos frecuentes: `201` creado, `400` datos inválidos, `401` no autenticado o credenciales inválidas, `404` no encontrado, `409` email ya registrado.
+| `POST` | `/auth/registro` | No | Registrar usuario |
+| `POST` | `/auth/login` | No | Iniciar sesión |
+| `GET` | `/usuarios/me` | Sí | Mi perfil |
+| `PUT` | `/usuarios/me` | Sí | Editar perfil |
+| `GET` | `/usuarios/{id}` | Sí | Perfil de otro usuario |
+| `POST` | `/social/seguir/{id}` | Sí | Seguir usuario |
+| `DELETE` | `/social/seguir/{id}` | Sí | Dejar de seguir |
+| `GET` | `/social/seguidores/{id}` | Sí | Seguidores |
+| `GET` | `/social/seguidos/{id}` | Sí | Seguidos |
+| `GET` | `/social/sugerencias` | Sí | Sugerencias |
+| `POST` | `/posts` | Sí | Crear publicación |
+| `GET` | `/posts/{id}` | Sí | Detalle de publicación |
+| `GET` | `/feed` | Sí | Feed personalizado |
+| `POST` | `/posts/{id}/reaccion` | Sí | Reaccionar |
+| `DELETE` | `/posts/{id}/reaccion` | Sí | Quitar reacción |
+| `POST` | `/chat/conversaciones` | Sí | Iniciar conversación |
+| `GET` | `/chat/conversaciones` | Sí | Mis conversaciones |
+| `GET` | `/chat/conversaciones/{id}/mensajes` | Sí | Historial |
+| `GET` | `/push/clave-publica` | No | Clave VAPID |
+| `POST` | `/push/suscripcion` | Sí | Registrar suscripción |
+| `DELETE` | `/push/suscripcion` | Sí | Cancelar suscripción |
 
 ---
 
-## 12. Modelo del grafo
-
-Nodos y relaciones definidos por el equipo. Los marcados con ✅ ya existen en el código; el resto es el diseño acordado.
+## 13. Modelo del grafo
 
 ```text
-✅ (:Usuario {id, nombre, email, passwordHash, bio, creadoEn})
+(:Usuario {id, nombre, email, passwordHash, bio, creadoEn})
+(:Post {id, texto, fecha, mediaKey})
+(:Conversacion {id, creadaEn})
+(:Mensaje {id, texto, fecha})
+(:Suscripcion {endpoint, p256dh, auth})
 
-   (:Post {id, texto, fecha, mediaKey})
-   (:Conversacion {id})
-   (:Mensaje {id, texto, fecha})
-
-   (:Usuario)-[:SIGUE {desde}]->(:Usuario)
-   (:Usuario)-[:PUBLICA]->(:Post)
-   (:Usuario)-[:REACCIONA {tipo, fecha}]->(:Post)
-   (:Usuario)-[:PARTICIPA_EN]->(:Conversacion)
-   (:Conversacion)-[:CONTIENE]->(:Mensaje)
-   (:Usuario)-[:ENVIO]->(:Mensaje)
+(:Usuario)-[:SIGUE {desde}]->(:Usuario)
+(:Usuario)-[:PUBLICA]->(:Post)
+(:Usuario)-[:REACCIONA {tipo, fecha}]->(:Post)
+(:Usuario)-[:PARTICIPA_EN]->(:Conversacion)
+(:Conversacion)-[:CONTIENE]->(:Mensaje)
+(:Usuario)-[:ENVIO]->(:Mensaje)
+(:Usuario)-[:TIENE_SUSCRIPCION]->(:Suscripcion)
 ```
-
-- `mediaKey` es únicamente la clave del objeto en S3. **Las imágenes nunca se guardan en Neo4j.**
-- Constraints actuales (se crean solas al arrancar el backend): `Usuario.id` único y `Usuario.email` único.
 
 ---
 
-## 13. Flujo de trabajo en Git
-
-- **Nunca se hace push directo a `main`.** Está protegida: todo entra por Pull Request.
-- Cada quien trabaja en su propia rama, con nombres como `feature/grafo-social`, `feature/posts-s3`, `feature/chat` o `feature/webpush`.
-- Un compañero revisa y aprueba antes de fusionar. Rotación de revisiones: A revisa a B, B a C, C a D, D a A.
+## 14. Flujo de trabajo en Git
 
 ```powershell
 git checkout main
 git pull
 git checkout -b feature/mi-funcionalidad
-
-# ...trabajar...
-
+# ... trabajar ...
 git add <archivos>
-git commit -m "feat(area): descripción corta" -m "Descripción más detallada"
+git commit -m "feat(area): descripción"
 git push -u origin feature/mi-funcionalidad
 ```
 
-Luego se abre el Pull Request en GitHub.
+Luego abrir Pull Request en GitHub.
 
-**Prefijos de commit:** `feat` (funcionalidad nueva), `fix` (corrección), `chore` (mantenimiento o configuración), `docs` (documentación), `refactor` (reorganización sin cambiar el comportamiento).
-
-**Reglas de seguridad** (el repositorio es público):
-
-- Nunca subir `.env`, `backend/.env`, archivos `.pem` ni llaves VAPID.
-- Antes de cada commit, revisar con `git status` qué se va a subir.
-- Si alguien sube un secreto por accidente, hay que cambiarlo de inmediato: borrarlo en un commit posterior **no** lo elimina del historial.
+**Reglas:**
+- Nunca hacer push directo a `main`
+- Prefijos: `feat`, `fix`, `chore`, `docs`, `refactor`
+- Nunca subir `.env`, `.pem` ni llaves VAPID
 
 ---
 
-## 14. Solución de problemas
+## 15. Solución de problemas
 
-| Problema | Causa probable | Solución |
-|---|---|---|
-| `java -version` no dice 21 | Hay otra versión de Java antes en el `PATH` | Usar los dos comandos `$env:JAVA_HOME` y `$env:Path` del [Paso 2](#paso-2-verificar-que-usas-java-21) en esa terminal |
-| `docker` no se reconoce, o dice que no puede conectar con el daemon | Docker Desktop no está abierto | Abrir Docker Desktop y esperar a que termine de iniciar |
-| `docker compose up` falla con "Define NEO4J_PASSWORD..." | Falta el archivo `.env` | Ejecutar `Copy-Item .env.example .env` y editar las claves |
-| PowerShell: "la ejecución de scripts está deshabilitada" o "no está firmado digitalmente" | Política de ejecución de PowerShell | Ejecutar el script así: `powershell -ExecutionPolicy Bypass -File .\scripts\generate-jwt-keys.ps1` |
-| "No se encontró openssl" al generar llaves | Git for Windows no está instalado o no está en el `PATH` | Instalar Git for Windows, o ejecutar el script desde Git Bash |
-| El backend arranca y falla con `Unable to connect to Neo4j` / `ServiceUnavailable` | Neo4j no está corriendo o todavía está iniciando | `docker compose up -d`, esperar ~30 s y revisar con `docker compose ps` |
-| El backend falla por `NEO4J_PASSWORD` no definido | Falta `backend/.env` | `Copy-Item .env backend\.env` (desde la raíz) |
-| Error de autenticación de Neo4j (`authentication failure`) | Cambiaste la contraseña en `.env` después de crear el contenedor: Neo4j la guarda la primera vez | `docker compose down -v` y luego `docker compose up -d` (**borra los datos**) |
-| No puedo entrar a la consola de RustFS (puerto 9001) | Claves con menos de 8 caracteres, o cambiadas después del primer arranque | Usar claves de 8 o más caracteres y ejecutar `docker compose down -v` y `docker compose up -d` |
-| Error `publicKey.pem` / `privateKey.pem` no encontrado | No se generaron las llaves | Ejecutar el [Paso 5](#paso-5-generar-las-llaves-jwt) |
-| `Port ... is already in use` (7474, 7687, 9000, 9001, 8080) | Otro programa usa ese puerto, o una instancia anterior sigue abierta | Cerrar ese programa o la terminal anterior del backend. Para ver qué usa el puerto: `netstat -ano \| findstr :8080` |
-| Swagger responde `401` en `/usuarios/me` | Falta el token | Hacer `POST /auth/login`, copiar el `token` y usar **Authorize** |
-| Swagger responde `400` en el registro | Datos inválidos: email mal escrito o contraseña de menos de 6 caracteres | Usar un email válido y una contraseña de 6 o más caracteres |
-| Responde `409` al registrarse | Ese email ya existe | Usar otro email o hacer login |
-| Texto con caracteres raros (`estÃ¡n`) en la consola | Codificación de la terminal | Es solo visual, no afecta el funcionamiento |
-| Neo4j Browser muestra las propiedades en español (`correo electrónico`, `identificación`) | Chrome está traduciendo la página | Desactivar la traducción automática. Los nombres reales son `email` e `id` |
-| `Permission denied` al ejecutar `mvnw` (Linux/macOS) | El archivo perdió el permiso de ejecución | `chmod +x backend/mvnw` |
+| Problema | Solución |
+|---|---|
+| Docker no funciona | Abre Docker Desktop |
+| `docker compose up` falla | Verifica que `.env` existe |
+| Error de autenticación Neo4j | `docker compose down -v` y volver a levantar |
+| Puerto ocupado | `netstat -ano \| findstr :8080` para identificar |
+| Backend no inicia | Verifica que `jwt-keys` terminó con `exited (0)` |
 
-Si nada de esto resuelve el problema, empezar de cero el entorno local suele funcionar:
-
-```powershell
-docker compose down -v
-docker compose up -d
-```
-
-y volver a arrancar el backend (esto borra los datos locales).
+Para más detalles sobre Docker, ver [README-DOCKER.md](README-DOCKER.md).
 
 ---
 
-## 15. Decisiones técnicas
+## 16. Decisiones técnicas
 
-- **REST para las operaciones convencionales.** Es el modelo petición-respuesta sin estado, ideal para CRUD y consultas, y el que mejor se integra con React. Se usa JSON por simplicidad, legibilidad y compatibilidad con el navegador. Serializaciones binarias como Protobuf reducen el tamaño de los mensajes, pero exigen un contrato estricto y herramientas extra que aquí no compensan.
-- **Neo4j para las relaciones sociales.** Seguir usuarios, sugerencias y feed son recorridos de relaciones: en un grafo se expresan con `MATCH` sobre patrones, sin los `JOIN` encadenados de un modelo relacional.
-- **Consultas Cypher con parámetros** (`$id`, `$email`), nunca concatenando texto, para evitar inyección Cypher.
-- **JWT firmado con RSA.** El backend no guarda sesiones (es *stateless*): el token lleva el id del usuario y su firma se verifica con la llave pública. Vigencia de 8 horas.
-- **Contraseñas con bcrypt.** Solo se guarda el hash, nunca el texto plano. Se puede ver en Neo4j: empieza con `$2a$`.
-- **Almacenamiento S3 con RustFS en lugar de MinIO.** El repositorio oficial de MinIO fue archivado en abril de 2026 y dejó de publicar imágenes Docker. RustFS es compatible con el protocolo S3 y trae consola web. Como el backend usa la API S3 estándar, cambiar de proveedor solo requiere cambiar el endpoint.
-- **Constraints de unicidad en Neo4j** (`Usuario.id`, `Usuario.email`): evitan duplicados aunque dos peticiones lleguen al mismo tiempo.
-- **Backend en local y contenedores de infraestructura.** Durante el desarrollo, Neo4j y S3 corren en Docker y Quarkus en modo dev en la máquina de cada quien, para recarga en caliente. La entrega final levantará todo con `docker compose up`.
-
----
-
-## 16. Secciones pendientes
-
-Estas secciones exige la actividad y se completarán conforme avance el proyecto:
-
-- [ ] Explicación del uso de REST frente a WebSocket (petición-respuesta frente a conexión persistente)
-- [ ] Explicación del uso de WebSocket en el chat
-- [ ] Explicación del uso de Web Push y configuración de llaves VAPID
-- [ ] Consultas Cypher desarrolladas (mínimo 5, al menos una de más de un nivel)
-- [ ] Endpoints completos del grafo social, posts, feed, chat y notificaciones
-- [ ] Diagrama de arquitectura definitivo en `docs/`
-- [ ] Instrucciones de ejecución con todo dockerizado
-
-## 17. Consultas Cypher (grafo social — Persona A)
-
-Implementadas en `GrafoRepository.java`. Detalle ampliado en [`docs/consultas-cypher-persona-a.md`](docs/consultas-cypher-persona-a.md).
-
-| # | Consulta | Niveles | Endpoint |
-|---|----------|---------|----------|
-| 1 | Seguidores | 1 | `GET /social/seguidores/{id}` |
-| 2 | Seguidos | 1 | `GET /social/seguidos/{id}` |
-| 3 | En común (patrón en V) | 2 | `GET /social/en-comun/{id}` |
-| 4 | **Sugerencias (amigos de amigos)** | **2** | `GET /social/sugerencias` |
-| 5 | **Alcanzables** `[:SIGUE*1..3]` | **1–3** | `GET /social/alcanzables` |
-| 6 | Estado de relación | 1 | `GET /social/estado/{id}` |
-| 7 | Grafo completo (nodos/enlaces) | — | `GET /social/grafo` |
-
-### Sugerencias (criterio de ranking)
-
-No son aleatorias: se recorre `(yo)-[:SIGUE]->(amigo)-[:SIGUE]->(candidato)`, se excluye a quien ya sigo, y se ordena por **cuántos de mis seguidos ya lo siguen** (`enComun`) y, como desempate, por **popularidad**. La respuesta incluye `via` (nombres puente) para mostrar *“Lo siguen Ana y Beto”*.
-
-```cypher
-MATCH (yo:Usuario {id: $id})-[:SIGUE]->(amigo:Usuario)-[:SIGUE]->(c:Usuario)
-WHERE c <> yo AND NOT (yo)-[:SIGUE]->(c)
-WITH c, collect(DISTINCT amigo.nombre) AS mediadores
-RETURN c.id AS id, c.nombre AS nombre,
-       size(mediadores) AS enComun,
-       mediadores[0..3] AS via,
-       COUNT { (c)<-[:SIGUE]-() } AS popularidad
-ORDER BY enComun DESC, popularidad DESC, nombre
-LIMIT 10
-```
-
-### Alcanzables (más de un nivel)
-
-```cypher
-MATCH p = (yo:Usuario {id: $id})-[:SIGUE*1..3]->(u:Usuario)
-WHERE u <> yo
-WITH u, min(length(p)) AS saltos
-RETURN u.id AS id, u.nombre AS nombre, saltos
-ORDER BY saltos, nombre
-LIMIT 50
-```
-
-### Endpoints REST del grafo (`SocialResource`)
-
-| Método | Ruta | Descripción |
-|--------|------|-------------|
-| POST | `/social/seguir/{id}` | Seguir |
-| DELETE | `/social/seguir/{id}` | Dejar de seguir |
-| GET | `/social/seguidores/{id}` | Lista de seguidores |
-| GET | `/social/seguidos/{id}` | Lista de seguidos |
-| GET | `/social/sugerencias` | Sugerencias del usuario autenticado |
-| GET | `/social/en-comun/{id}` | Seguidos en común |
-| GET | `/social/alcanzables` | Red a hasta 3 saltos |
-| GET | `/social/estado/{id}` | sigo / meSigue / contadores |
-| GET | `/social/grafo` | Nodos y enlaces para la UI |
-
-### Pantallas frontend (Persona A)
-
-| Ruta | Archivo | Función |
-|------|---------|---------|
-| `/login`, `/registro` | `Login.jsx`, `Registro.jsx` | Autenticación |
-| `/sugerencias` | `Sugerencias.jsx` | Personas sugeridas + seguir/dejar de seguir |
-| `/grafo` | `Grafo.jsx` | Force-graph interactivo |
-| `/perfil/:id` | `Perfil.jsx` | Perfil, tabs, editar si es propio |
-
+- **REST para CRUD y consultas** - Petición-respuesta sin estado, ideal para React
+- **Neo4j para relaciones sociales** - Recorridos de grafo más eficientes que JOIN encadenados
+- **JWT firmado con RSA** - Stateless, el token lleva el id del usuario
+- **Bcrypt para contraseñas** - Solo se guarda el hash, empieza con `$2a$`
+- **RustFS en lugar de MinIO** - MinIO fue archivado en 2026, RustFS es compatible S3
+- **Web Push con VAPID** - Notificaciones funcionan con la app cerrada
+- **Docker Compose** - Entorno reproducible sin instalar dependencias
