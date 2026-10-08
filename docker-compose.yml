@@ -67,9 +67,9 @@ services:
       S3_ACCESS_KEY: ${S3_ACCESS_KEY}
       S3_SECRET_KEY: ${S3_SECRET_KEY}
       S3_BUCKET: posts-media
-      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY}
-      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY}
-      VAPID_SUBJECT: ${VAPID_SUBJECT}
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:?Define VAPID_PUBLIC_KEY en el archivo .env (npx web-push generate-vapid-keys)}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:?Define VAPID_PRIVATE_KEY en el archivo .env (npx web-push generate-vapid-keys)}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:admin@redsocial.local}
       JWT_PUBLIC_KEY_PATH: file:/keys/publicKey.pem
       JWT_PRIVATE_KEY_PATH: file:/keys/privateKey.pem
     depends_on:
