@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { api , WS_URL } from '../api/client';
+import { api, WS_URL } from '../api/client';
+import { useAuth } from '../auth/AuthContext';
 import '../styles/chat.css';
 
 export function Chat() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { usuario } = useAuth();
 
   const [conversaciones, setConversaciones] = useState([]);
   const [conversacionActiva, setConversacionActiva] = useState(null);
@@ -29,24 +31,20 @@ export function Chat() {
   const [cargandoContactos, setCargandoContactos] = useState(false);
   const [contactoProvisional, setContactoProvisional] = useState(null);
 
+  const [conectado, setConectado] = useState(false);
+  const [avisoChat, setAvisoChat] = useState('');
+
   const conversacionActivaRef = useRef(null);
   const miIdRef = useRef(null);
   const wsRef = useRef(null);
   const scrollRef = useRef(null);
+  // Mensajes escritos mientras el socket no estaba abierto: se envían al (re)conectar
+  const pendientesRef = useRef([]);
+  const procesarSocketRef = useRef(null);
 
   const token = localStorage.getItem('token');
-  const usuarioGuardado = JSON.parse(localStorage.getItem('usuario') || localStorage.getItem('user') || '{}');
-  
-  let miId = usuarioGuardado.id || usuarioGuardado.sub;
-  if (!miId && token) {
-    try {
-      const payloadBase64 = token.split('.')[1];
-      const decoded = JSON.parse(atob(payloadBase64));
-      miId = decoded.sub || decoded.upn || decoded.id;
-    } catch (e) {
-      console.error('Error decodificando token:', e);
-    }
-  }
+  // El id propio viene de la sesión (GET /usuarios/me); esta pantalla solo se muestra con sesión iniciada
+  const miId = usuario?.id;
 
   useEffect(() => {
     conversacionActivaRef.current = conversacionActiva;
@@ -122,90 +120,121 @@ export function Chat() {
     }
   }
 
-  // 2. Conectar WebSocket activo
-  const conectarWebSocket = () => {
-    if (!token) return;
-    if (wsRef.current && (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING)) {
-      return;
-    }
+  // 2. WebSocket: una sola conexión persistente mientras esta pantalla está abierta
+  const procesarMensajeSocket = (evento) => {
+    try {
+      const payload = JSON.parse(evento.data);
+      if (payload.tipo === 'error') {
+        // El servidor rechazó el envío: se retira el mensaje provisional y se avisa
+        setMensajes((prev) => prev.filter((m) => !m.tempId));
+        setAvisoChat(payload.error || 'No se pudo enviar el mensaje.');
+        return;
+      }
+      if (payload.tipo !== 'mensaje') return;
 
-  const ws = new WebSocket(`${WS_URL}/ws/chat?token=${encodeURIComponent(token)}`);
-    wsRef.current = ws;
+      const convId = String(payload.conversacionId);
+      const mensajeId = String(payload.id);
+      const idChatAbierto = conversacionActivaRef.current?.id;
+      const estaEnEsteChat = String(idChatAbierto ?? '') === convId;
+      const idActual = miIdRef.current;
+      const esMio = String(payload.autorId) === String(idActual);
 
-    ws.onmessage = (evento) => {
-      try {
-        const payload = JSON.parse(evento.data);
-        if (payload.tipo !== 'mensaje') return;
+      if (estaEnEsteChat) {
+        setMensajes((prev) => {
+          const existePorId = prev.some((m) => String(m.id) === mensajeId);
+          if (existePorId) return prev;
 
-        const convId = String(payload.conversacionId);
-        const mensajeId = String(payload.id);
-        const idChatAbierto = conversacionActivaRef.current?.id;
-        const estaEnEsteChat = String(idChatAbierto ?? '') === convId;
-        const idActual = miIdRef.current;
-        const esMio = String(payload.autorId) === String(idActual);
+          const indiceTemp = prev.findIndex(
+            (m) => m.tempId && m.texto === payload.texto && String(m.autorId) === String(payload.autorId)
+          );
 
-        if (estaEnEsteChat) {
-          setMensajes((prev) => {
-            const existePorId = prev.some((m) => String(m.id) === mensajeId);
-            if (existePorId) return prev;
-
-            const indiceTemp = prev.findIndex(
-              (m) => m.tempId && m.texto === payload.texto && String(m.autorId) === String(payload.autorId)
-            );
-
-            if (indiceTemp !== -1) {
-              return prev.map((m, i) => (i === indiceTemp ? payload : m));
-            }
-
-            return [...prev, payload];
-          });
-
-          marcarVisto(convId, mensajeId);
-        }
-
-        const vistos = obtenerVistos();
-        const noLeido = !estaEnEsteChat && !esMio && String(vistos[convId] ?? '') !== mensajeId;
-
-        setConversaciones((prev) => {
-          const existe = prev.some((c) => String(c.id) === convId);
-
-          if (!existe) {
-            void cargarConversaciones(estaEnEsteChat ? payload.conversacionId : null);
-            return prev;
+          if (indiceTemp !== -1) {
+            return prev.map((m, i) => (i === indiceTemp ? payload : m));
           }
 
-          return prev.map((c) => {
-            if (String(c.id) !== convId) return c;
-            return {
-              ...c,
-              ultimoTexto: payload.texto,
-              ultimaFecha: payload.fecha,
-              ultimoMensajeId: mensajeId,
-              ultimoAutorId: payload.autorId,
-              noLeido,
-            };
-          });
+          return [...prev, payload];
         });
 
-        if (!esMio) {
-          window.dispatchEvent(new Event('chat:status-changed'));
-        }
-      } catch (err) {
-        console.error('Error procesando socket:', err);
+        marcarVisto(convId, mensajeId);
       }
-    };
 
-    ws.onclose = () => {
-      setTimeout(() => {
-        if (token) conectarWebSocket();
-      }, 1500);
-    };
+      const vistos = obtenerVistos();
+      const noLeido = !estaEnEsteChat && !esMio && String(vistos[convId] ?? '') !== mensajeId;
+
+      setConversaciones((prev) => {
+        const existe = prev.some((c) => String(c.id) === convId);
+
+        if (!existe) {
+          void cargarConversaciones(estaEnEsteChat ? payload.conversacionId : null);
+          return prev;
+        }
+
+        return prev.map((c) => {
+          if (String(c.id) !== convId) return c;
+          return {
+            ...c,
+            ultimoTexto: payload.texto,
+            ultimaFecha: payload.fecha,
+            ultimoMensajeId: mensajeId,
+            ultimoAutorId: payload.autorId,
+            noLeido,
+          };
+        });
+      });
+
+      if (!esMio) {
+        window.dispatchEvent(new Event('chat:status-changed'));
+      }
+    } catch (err) {
+      console.error('Error procesando socket:', err);
+    }
   };
 
+  // El socket siempre llama a la versión más reciente del manejador
   useEffect(() => {
-    conectarWebSocket();
+    procesarSocketRef.current = procesarMensajeSocket;
+  });
+
+  useEffect(() => {
+    if (!token) return undefined;
+
+    let activo = true;
+    let ws = null;
+    let temporizador = null;
+    let intentos = 0;
+
+    const conectar = () => {
+      if (!activo) return;
+
+      ws = new WebSocket(`${WS_URL}/ws/chat?token=${encodeURIComponent(token)}`);
+      wsRef.current = ws;
+
+      ws.onopen = () => {
+        intentos = 0;
+        setConectado(true);
+        const cola = pendientesRef.current;
+        pendientesRef.current = [];
+        cola.forEach((paquete) => ws.send(JSON.stringify(paquete)));
+      };
+
+      ws.onmessage = (evento) => procesarSocketRef.current?.(evento);
+
+      ws.onclose = () => {
+        setConectado(false);
+        // Al salir de la pantalla no se reconecta; si la conexión se cayó, se reintenta cada vez más espaciado
+        if (!activo) return;
+        intentos += 1;
+        temporizador = setTimeout(conectar, Math.min(1500 * 2 ** (intentos - 1), 15000));
+      };
+    };
+
+    conectar();
+
     return () => {
-      if (wsRef.current) wsRef.current.close();
+      activo = false;
+      clearTimeout(temporizador);
+      if (ws) ws.close();
+      wsRef.current = null;
     };
   }, [token]);
 
@@ -245,6 +274,7 @@ export function Chat() {
     e.preventDefault();
     const texto = nuevoMensaje.trim();
     if (!texto) return;
+    setAvisoChat('');
 
     let convId = conversacionActiva?.id;
     const tempId = `temp-${Date.now()}`; // ✅ Generado antes de usarlo
@@ -301,17 +331,12 @@ export function Chat() {
 
     marcarVisto(convId, tempId);
 
-    const despachar = () => {
-      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-        wsRef.current.send(JSON.stringify({ conversacionId: convId, texto }));
-      }
-    };
-
-    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
-      conectarWebSocket();
-      setTimeout(despachar, 300);
+    // Siempre por WebSocket. Si la conexión se está restableciendo, el mensaje espera en cola
+    const paquete = { conversacionId: convId, texto };
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify(paquete));
     } else {
-      despachar();
+      pendientesRef.current.push(paquete);
     }
   }
 
@@ -358,7 +383,15 @@ export function Chat() {
       {/* Sidebar lateral */}
       <div className="chat-sidebar">
         <div className="chat-sidebar-header">
-          <h2 className="chat-sidebar-title">Mensajes</h2>
+          <h2 className="chat-sidebar-title">
+            Mensajes{' '}
+            <span
+              title={conectado ? 'Conectado en tiempo real (WebSocket)' : 'Reconectando…'}
+              style={{ fontSize: '0.7rem', color: conectado ? '#22c55e' : '#f59e0b', verticalAlign: 'middle' }}
+            >
+              {conectado ? '● en línea' : '○ reconectando…'}
+            </span>
+          </h2>
           <button onClick={abrirNuevoChat} className="chat-btn-nuevo" title="Iniciar conversación">
             + Nuevo
           </button>
@@ -551,7 +584,7 @@ export function Chat() {
                 const esMio = Boolean(miId && String(m.autorId) === String(miId));
                 return (
                   <div
-                    key={m.id || `${m.fecha}-${Math.random()}`}
+                    key={m.id}
                     className={`chat-message-row ${esMio ? 'mio' : 'otro'}`}
                   >
                     <div className={`chat-message-bubble ${esMio ? 'mio' : 'otro'}`}>
@@ -567,6 +600,12 @@ export function Chat() {
               })}
               <div ref={scrollRef} />
             </div>
+
+            {avisoChat && (
+              <div role="alert" style={{ padding: '0.4rem 1rem', fontSize: '0.85rem', color: '#f87171' }}>
+                {avisoChat}
+              </div>
+            )}
 
             <form onSubmit={manejarEnvio} className="chat-input-area">
               <input
