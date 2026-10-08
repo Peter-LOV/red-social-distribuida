@@ -34,12 +34,12 @@ Proyecto de la asignatura Sistemas Distribuidos.
 
 ## 1. Integrantes
 
-| Integrante | Usuario GitHub | Área principal |
-|---|---|---|
-| _Nombre 1_ | Peter Orrala | A. Usuarios y grafo social |
-| _Nombre 2_ | Skay Alvarado | B. Contenido, S3, feed y reacciones |
-| _Nombre 3_ | Amy Tomala Silvestre | C. Chat en tiempo real (WebSocket) |
-| _Nombre 4_ | Ismael Anchundia | D. Infraestructura, Web Push, diagrama y documentación |
+| Integrante | Área principal |
+|---|---|
+| Peter Orrala | A. Usuarios y grafo social |
+| Skay Alvarado | B. Contenido, S3, feed y reacciones |
+| Amy Tomala Silvestre | C. Chat en tiempo real (WebSocket) |
+| Ismael Anchundia | D. Infraestructura, Web Push, diagrama y documentación |
 
 ---
 
@@ -61,29 +61,40 @@ Proyecto de la asignatura Sistemas Distribuidos.
 
 ## 3. Arquitectura
 
-```text
-                     ┌─────────────┐
-                     │    React    │
-                     └──────┬──────┘
-                            │ REST / WebSocket
-                     ┌──────▼──────┐
-                     │   Quarkus   │
-                     │   Backend   │
-                     └───┬────┬────┘
-                         │    │
-                 Cypher  │    │  API S3
-                (Bolt)   │    │
-                  ┌──────▼─┐ ┌▼─────────────┐
-                  │ Neo4j  │ │ Object       │
-                  │        │ │ Storage (S3) │
-                  └────────┘ └──────────────┘
-                         │
-                     Web Push (VAPID)
-                         │
-                  ┌──────▼──────┐
-                  │   Usuario   │
-                  └─────────────┘
+El diagrama representa la arquitectura realmente implementada (también en [docs/arquitectura.md](docs/arquitectura.md) y como imagen en [docs/arquitectura.png](docs/arquitectura.png)).
+
+```mermaid
+flowchart TB
+  subgraph NAV["Navegador del usuario"]
+    SW["Service Worker (sw.js)"]
+    R["React (SPA)"]
+  end
+  NG["nginx :80<br/>archivos estáticos"]
+  P["Servicio push del navegador<br/>(FCM / Mozilla / WNS)"]
+  B["Backend Quarkus :8080"]
+  N[("Neo4j :7687<br/>grafo y metadatos")]
+  S[("RustFS :9000<br/>Object Storage S3")]
+
+  P -- "evento push" --> SW
+  SW -- "notificación → /post/{id}" --> R
+  NG -- "HTML, JS y sw.js" --> R
+  R -- "REST / HTTP + JSON (JWT Bearer)" --> B
+  R <-- "WebSocket /ws/chat (persistente)" --> B
+  B -- "Web Push (HTTPS, VAPID, aes128gcm)" --> P
+  B -- "Cypher sobre Bolt" --> N
+  B -- "API S3 (PutObject / GetObject)" --> S
 ```
+
+| Origen → Destino | Mecanismo | Para qué |
+|---|---|---|
+| React → Quarkus | REST / HTTP + JSON, JWT en `Authorization` | CRUD y consultas |
+| React ↔ Quarkus | WebSocket `/ws/chat` (persistente, bidireccional) | Mensajes del chat en tiempo real |
+| Quarkus → Neo4j | Cypher sobre Bolt | Usuarios, relaciones, posts, mensajes, suscripciones |
+| Quarkus → RustFS | API S3 | Guardar y leer las imágenes |
+| Quarkus → Servicio push | Web Push (HTTPS + VAPID) | Avisar a los seguidores cuando alguien publica |
+| Servicio push → Service Worker | Evento `push` del navegador | Mostrar la notificación con la app cerrada |
+
+El navegador nunca se conecta directamente a Neo4j ni a RustFS: las imágenes se piden al backend (`GET /media/{clave}`). Web Push no sale de Neo4j: lo envía el backend al servicio push del fabricante del navegador, y este lo entrega al Service Worker.
 
 | Necesidad | Mecanismo | Componente |
 |---|---|---|
@@ -139,7 +150,7 @@ Esta es la forma más rápida de probar el proyecto sin instalar dependencias.
    Copy-Item .env.example .env
    notepad .env
    ```
-   Cambia `NEO4J_PASSWORD`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` y las llaves VAPID.
+   Cambia `NEO4J_PASSWORD`, `S3_ACCESS_KEY` y `S3_SECRET_KEY`. Las llaves VAPID son opcionales: si se dejan vacías, el backend genera un par en el primer arranque y lo conserva en el volumen `vapid_keys`.
 
 3. **Levantar todo:**
    ```powershell
@@ -147,7 +158,7 @@ Esta es la forma más rápida de probar el proyecto sin instalar dependencias.
    ```
 
 4. **Acceder:**
-   - Frontend: http://localhost:80
+   - Frontend: http://localhost (usar `localhost` y no la IP: Web Push solo funciona en `localhost` o HTTPS)
    - Swagger: http://localhost:8080/q/swagger-ui
    - Neo4j: http://localhost:7474
 
@@ -184,8 +195,10 @@ $env:Path = "$env:JAVA_HOME\bin;$env:Path"
 
 ### Paso 3: Levantar infraestructura
 
+Solo Neo4j y RustFS; el backend y el frontend se arrancan a mano en los pasos 5 y 6 (si se levanta todo, el contenedor del backend ocupa el puerto 8080).
+
 ```powershell
-docker compose up -d
+docker compose up -d neo4j rustfs
 ```
 
 ### Paso 4: Generar llaves JWT
@@ -222,7 +235,7 @@ docker compose down       # Detener
 ### Modo dev local:
 
 ```powershell
-docker compose up -d              # Infraestructura
+docker compose up -d neo4j rustfs # Infraestructura
 cd backend && .\mvnw quarkus:dev # Backend
 cd frontend && npm run dev          # Frontend
 ```
@@ -240,8 +253,9 @@ cd frontend && npm run dev          # Frontend
 | `S3_SECRET_KEY` | Contraseña S3 (mínimo 8 caracteres). **Obligatoria** | `TuClaveSecretaLarga` |
 | `S3_ENDPOINT` | Dirección de la API S3. En Docker la fija el compose | `http://localhost:9000` (Docker: `http://rustfs:9000`) |
 | `S3_BUCKET` | Bucket de las imágenes; se crea solo al arrancar | `posts-media` |
-| `VAPID_PUBLIC_KEY` | Clave pública VAPID (generada con `npx web-push generate-vapid-keys`) | `BBtMvrOmBrpWspD1iLgb...` |
-| `VAPID_PRIVATE_KEY` | Clave privada VAPID. **Secreto: no subir a Git** | `KBEzGlWoyNi85Je2419Tw...` |
+| `VAPID_PUBLIC_KEY` | Clave pública VAPID. **Opcional**: vacía = el backend genera el par y lo guarda. Para fijarla: `npx web-push generate-vapid-keys` | `BBtMvrOmBrpWspD1iLgb...` |
+| `VAPID_PRIVATE_KEY` | Clave privada VAPID. Opcional; si se define, debe ir junto con la pública. **Secreto: no subir a Git** | `KBEzGlWoyNi85Je2419Tw...` |
+| `VAPID_KEYS_DIR` | Carpeta donde el backend guarda las llaves VAPID que genera. En Docker la fija el compose | `vapid-keys` (Docker: `/vapid`, volumen `vapid_keys`) |
 | `VAPID_SUBJECT` | Contacto del servidor para el servicio push | `mailto:admin@redsocial.local` |
 | `JWT_PUBLIC_KEY_PATH` | Ruta de la llave pública RSA (solo modo dev; en Docker la genera el servicio `jwt-keys`) | `/publicKey.pem` |
 | `JWT_PRIVATE_KEY_PATH` | Ruta de la llave privada RSA (solo modo dev) | `/privateKey.pem` |
@@ -443,7 +457,16 @@ LIMIT 10
 4. *Explicabilidad (`via`):* hasta 3 nombres de los mediadores, para que la interfaz diga "Lo siguen Ana y Beto".
 5. *Límite:* 10 sugerencias.
 
-Limitación conocida: un usuario que no sigue a nadie no recibe sugerencias, porque no hay primer salto desde el que recorrer (problema de "arranque en frío").
+**Arranque en frío:** un usuario que no sigue a nadie no tiene candidatos a 2 saltos. Solo en ese caso (cuando la consulta anterior no devuelve nada) se usa una segunda consulta que sugiere a los usuarios con más seguidores a los que todavía no sigue. Sigue siendo información del grafo (grado de entrada de `SIGUE`), nunca un orden aleatorio:
+
+```cypher
+MATCH (yo:Usuario {id: $id}), (c:Usuario)
+WHERE c <> yo AND NOT (yo)-[:SIGUE]->(c)
+RETURN c.id AS id, c.nombre AS nombre,
+       COUNT { (c)<-[:SIGUE]-() } AS popularidad
+ORDER BY popularidad DESC, nombre
+LIMIT 10
+```
 
 ### 6. Usuarios alcanzables hasta 3 saltos ⭐
 
@@ -622,12 +645,19 @@ Cliente ◀── respuesta ── Servidor      una conexión persistente; cual
   { "tipo": "mensaje", "id": "…", "conversacionId": "…", "autorId": "…", "texto": "hola", "fecha": "…" }
   ```
 
+- **Mensaje de error del servidor** (conversación ajena, formato inválido o texto de más de 2000 caracteres); la conexión no se cierra:
+
+  ```json
+  { "tipo": "error", "error": "No participas en esta conversación" }
+  ```
+
 - **Flujo al enviar un mensaje:**
   1. El servidor identifica al emisor por su conexión.
   2. Guarda el mensaje en Neo4j: `(:Conversacion)-[:CONTIENE]->(:Mensaje)` y `(:Usuario)-[:ENVIO]->(:Mensaje)`.
   3. Entrega el mensaje a todas las conexiones del destinatario **y** a las demás pestañas del emisor.
 - **Inicio de conversación, lista de conversaciones e historial:** por REST (`/chat/*`), porque son consultas puntuales. El historial se lee de Neo4j, no depende de la conexión.
-- **Reconexión:** si la conexión se cae, el cliente intenta reconectar automáticamente.
+- **Reconexión:** si la conexión se cae, el cliente reintenta con esperas crecientes (de 1,5 s hasta 15 s). Los mensajes escritos durante el corte quedan en cola y se envían al reconectar. Al salir de la pantalla del chat la conexión se cierra y no se vuelve a abrir.
+- **Sin polling:** no hay `setInterval` ni peticiones REST repetidas; los mensajes llegan porque el servidor los envía por la conexión abierta.
 
 ### Cómo comprobar el tiempo real
 
@@ -662,11 +692,11 @@ Anthony sigue a Carlos
 
 | Pieza | Dónde | Función |
 |---|---|---|
-| Claves VAPID | Variables `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` | Identifican al servidor ante el servicio push |
+| Claves VAPID | `ClavesVapid`: variables `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` o, si están vacías, un par generado y guardado en el volumen `vapid_keys` | Identifican al servidor ante el servicio push |
 | `GET /push/clave-publica` | `PushResource` | Entrega al navegador la clave pública para suscribirse |
 | `POST/DELETE /push/suscripcion` | `PushResource`, `PushRepository` | Guarda o elimina la suscripción en Neo4j |
 | `NuevoPostEvent` | `PostResource` → `WebPushService` | Desacopla la publicación del envío de notificaciones |
-| `WebPushService` | backend (librería `web-push`) | Calcula destinatarios, cifra y envía |
+| `WebPushService` | backend (librería `nl.martijndwars:web-push`) | Calcula destinatarios, cifra (aes128gcm, RFC 8291) y envía |
 | `frontend/public/sw.js` | navegador | Recibe el `push`, muestra la notificación y gestiona el clic |
 | `frontend/src/push.js` | frontend | Registra el Service Worker, pide permiso y se suscribe |
 
@@ -674,15 +704,20 @@ Anthony sigue a Carlos
 
 **Suscripciones caducadas:** si el servicio push responde 404 o 410, la suscripción se elimina de Neo4j.
 
-**Requisitos del navegador:** HTTPS o `localhost`, soporte de Service Worker y que el usuario conceda el permiso de notificaciones.
+**Suscripción y sesión:** al iniciar sesión, si el navegador ya había concedido el permiso, la suscripción se asocia a la cuenta que entra; al cerrar sesión se elimina. Un usuario solo puede eliminar sus propias suscripciones. Si la llave VAPID del servidor cambia, el frontend lo detecta y vuelve a suscribirse.
+
+**Requisitos del navegador:** HTTPS o `localhost`, soporte de Service Worker y que el usuario conceda el permiso de notificaciones. **No funciona en ventanas de incógnito** ni con la emulación de dispositivo de las herramientas de desarrollo, y el equipo necesita acceso a internet (el envío pasa por el servicio push del fabricante del navegador).
 
 ### Cómo probarlo
 
+0. Usar dos navegadores distintos o dos perfiles (ventanas normales, no incógnito): cada navegador tiene su propia suscripción.
 1. Con dos usuarios, A sigue a B.
 2. A inicia sesión y activa las notificaciones desde la barra de navegación.
 3. A cierra la pestaña de la aplicación.
 4. B publica algo.
 5. A recibe la notificación del sistema; al hacer clic, se abre `/post/<id>`.
+
+Para ver el envío desde el backend: `docker compose logs backend | Select-String "PUSH"` (destinatarios encontrados y código HTTP del servicio push; `201` significa enviado).
 
 ---
 
@@ -697,7 +732,7 @@ Anthony sigue a Carlos
 | Referencia a la imagen | `Post.mediaKey` en Neo4j | — | Lo único que Neo4j conserva del archivo |
 | Token de sesión (JWT) | Navegador (`localStorage`) | Cabecera `Authorization` | El backend no guarda sesiones, solo verifica la firma |
 | Llaves JWT (RSA) | Volumen Docker `jwt_keys` | — | Se generan solas en el primer arranque |
-| Claves VAPID | Variables de entorno (`.env`) | — | Son secretos de configuración, no de negocio |
+| Claves VAPID | Variables de entorno (`.env`) o volumen Docker `vapid_keys` | — | Son secretos de configuración, no de negocio; si no se definen, se generan solas en el primer arranque |
 
 ### Flujo de una publicación con imagen
 
@@ -744,7 +779,10 @@ Luego abrir Pull Request en GitHub.
 | `docker compose up` falla | Verifica que `.env` existe |
 | Error de autenticación Neo4j | `docker compose down -v` y volver a levantar |
 | Puerto ocupado | `netstat -ano \| findstr :8080` para identificar |
-| Backend no inicia | Verifica que `jwt-keys` terminó con `exited (0)` |
+| Backend no inicia | Verifica que `jwt-keys` terminó con `exited (0)` y revisa `docker compose logs backend` |
+| El build falla descargando dependencias | Es la red: vuelve a ejecutar `docker compose up -d --build` |
+| "No se pudieron activar las notificaciones" | No usar incógnito; en el icono a la izquierda de la URL, poner Notificaciones en Permitir y recargar |
+| No llega la notificación | Solo se envía cuando publica alguien a quien sigues; revisa `docker compose logs backend \| Select-String "PUSH"` y las notificaciones de Windows para el navegador |
 
 Para más detalles sobre Docker, ver [README-DOCKER.md](README-DOCKER.md).
 
@@ -768,12 +806,12 @@ Cada decisión responde a qué problema resuelve el componente y por qué se eli
 | **RustFS en lugar de MinIO** | Servicio compatible con S3 | MinIO fue archivado en 2026; RustFS es compatible con la API S3 |
 | **JWT firmado con RSA** | Autenticación sin sesiones en el servidor | Stateless: el token lleva el id del usuario y caduca a las 8 horas |
 | **Bcrypt para contraseñas** | Proteger credenciales | Solo se guarda el hash (empieza con `$2a$`) |
-| **Docker Compose** | Despliegue reproducible | Un solo comando levanta Neo4j, S3, backend y frontend; las llaves JWT se generan solas |
+| **Docker Compose** | Despliegue reproducible | Un solo comando levanta Neo4j, S3, backend y frontend; las llaves JWT y VAPID se generan solas |
 
 ### Limitaciones conocidas
 
 - El registro de conexiones WebSocket vive **en la memoria** de una instancia del backend. Con varias instancias haría falta un intermediario de mensajes (por ejemplo Redis o un broker) para repartir mensajes entre ellas.
 - El JWT viaja en la URL del WebSocket porque el navegador no permite cabeceras personalizadas al abrir la conexión.
-- El feed muestra solo publicaciones de los usuarios seguidos (no las propias) y un usuario sin seguidos no recibe sugerencias.
+- El feed muestra solo publicaciones de los usuarios seguidos (no las propias).
 - `/social/grafo` devuelve el grafo completo a cualquier usuario autenticado, lo cual sirve para la demostración pero no sería adecuado con muchos usuarios.
 - El alcance de `/social/alcanzables` está fijado en 3 saltos.
