@@ -1,66 +1,40 @@
-# backend
+# Backend — Quarkus + Java 21
 
-This project uses Quarkus, the Supersonic Subatomic Java Framework.
+API REST, servidor WebSocket y envío de Web Push de la red social. La documentación completa
+(arquitectura, endpoints, consultas Cypher y decisiones) está en el [README principal](../README.md).
 
-If you want to learn more about Quarkus, please visit its website: <https://quarkus.io/>.
+## Estructura
 
-## Running the application in dev mode
+```text
+src/main/java/com/redsocial/
+├── common/     Esquema de Neo4j, evento NuevoPostEvent y respuesta 503 si Neo4j no responde
+├── usuarios/   Registro, login (JWT + bcrypt), perfiles, búsqueda y grafo social
+├── posts/      Publicaciones, feed, reacciones y almacenamiento S3
+├── chat/       Conversaciones (REST) y mensajes en tiempo real (WebSocket)
+└── push/       Suscripciones y envío de Web Push (VAPID)
+```
 
-You can run your application in dev mode that enables live coding using:
+Cada módulo sigue la misma separación: `*Resource` (HTTP), `*Repository` (Cypher) y `record` como DTO.
 
-```shell script
+## Ejecutar
+
+Con Docker (recomendado), desde la raíz del repositorio:
+
+```bash
+docker compose up -d --build
+```
+
+En modo desarrollo (necesita JDK 21 y Neo4j + RustFS levantados con `docker compose up -d neo4j rustfs`):
+
+```bash
 ./mvnw quarkus:dev
 ```
 
-> **_NOTE:_**  Quarkus now ships with a Dev UI, which is available in dev mode only at <http://localhost:8080/q/dev/>.
+## Pruebas
 
-## Packaging and running the application
-
-The application can be packaged using:
-
-```shell script
-./mvnw package
+```bash
+./mvnw test
 ```
 
-It produces the `quarkus-run.jar` file in the `target/quarkus-app/` directory.
-Be aware that it’s not an _über-jar_ as the dependencies are copied into the `target/quarkus-app/lib/` directory.
-
-The application is now runnable using `java -jar target/quarkus-app/quarkus-run.jar`.
-
-If you want to build an _über-jar_, execute the following command:
-
-```shell script
-./mvnw package -Dquarkus.package.jar.type=uber-jar
-```
-
-The application, packaged as an _über-jar_, is now runnable using `java -jar target/*-runner.jar`.
-
-## Creating a native executable
-
-You can create a native executable using:
-
-```shell script
-./mvnw package -Dnative
-```
-
-Or, if you don't have GraalVM installed, you can run the native executable build in a container using:
-
-```shell script
-./mvnw package -Dnative -Dquarkus.native.container-build=true
-```
-
-You can then execute your native executable with: `./target/backend-1.0.0-SNAPSHOT-runner`
-
-If you want to learn more about building native executables, please consult <https://quarkus.io/guides/maven-tooling>.
-
-## Related Guides
-
-- REST ([guide](https://quarkus.io/guides/rest)): Build RESTful web services and APIs using Jakarta REST (formerly JAX-RS)
-- Hibernate Validator ([guide](https://quarkus.io/guides/validation)): Bean validation using Hibernate Validator and Jakarta Validation annotations
-- Neo4j client ([guide](https://quarkiverse.github.io/quarkiverse-docs/quarkus-neo4j/dev/index.html)): Connect to Neo4j graph datastore
-- WebSockets Next ([guide](https://quarkus.io/guides/websockets-next-reference)): Implementation of the WebSocket API with enhanced efficiency and usability
-- SmallRye OpenAPI ([guide](https://quarkus.io/guides/openapi-swaggerui)): Generate OpenAPI schemas and serve Swagger UI for REST API documentation
-- REST Jackson ([guide](https://quarkus.io/guides/rest#json-serialisation)): Jackson serialization support for Quarkus REST. This extension is not compatible with the quarkus-resteasy extension, or any of the extensions that depend on it
-- SmallRye JWT ([guide](https://quarkus.io/guides/security-jwt)): Secure your applications with JSON Web Token
-- SmallRye Health ([guide](https://quarkus.io/guides/smallrye-health)): Monitor service health
-- SmallRye JWT Build ([guide](https://quarkus.io/guides/security-jwt-build)): Create JSON Web Token with SmallRye JWT Build API
+Pruebas unitarias de las piezas sin dependencias externas: generación de llaves VAPID
+(`GeneradorVapidTest`) y detección del tipo real de una imagen (`FirmaImagenTest`).

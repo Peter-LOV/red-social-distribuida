@@ -125,8 +125,10 @@ El navegador nunca se conecta directamente a Neo4j ni a RustFS: las imágenes se
 ## 5. Requisitos previos
 
 **Opción A - Docker (Recomendado):**
-- Solo necesitas Docker Desktop instalado
-- Ver guía completa en [README-DOCKER.md](README-DOCKER.md)
+- Solo necesitas Docker Desktop (o Docker Engine con Compose v2.20 o superior) y unos 4 GB de RAM libres
+- Conexión a internet la primera vez (descarga imágenes y dependencias; puede tardar 10-15 minutos)
+- Puertos libres: 80, 8080, 7474, 7687, 9000 y 9001. Si el 80 está ocupado (IIS, XAMPP, Skype), detén ese programa
+- Funciona en Windows, Linux y macOS. Ver guía completa en [README-DOCKER.md](README-DOCKER.md)
 
 **Opción B - Modo dev local:**
 - Git for Windows
@@ -157,10 +159,21 @@ Esta es la forma más rápida de probar el proyecto sin instalar dependencias.
    docker compose up -d --build
    ```
 
-4. **Acceder:**
+   El archivo `.env.example` funciona tal cual para una prueba local: basta con copiarlo.
+
+4. **Cargar datos de demostración (opcional):** 8 usuarios con clave `demo1234`, una red de seguimiento y 5 publicaciones.
+   ```powershell
+   docker compose --profile seed run --rm seed
+   ```
+   Funciona en cualquier sistema operativo y se puede repetir sin duplicar datos. Usuarios: `ana@demo.com`, `beto@demo.com`, `carla@demo.com`, `diego@demo.com`, `elena@demo.com`, `fabian@demo.com`, `gabriela@demo.com`, `hugo@demo.com`.
+
+5. **Acceder:**
    - Frontend: http://localhost (usar `localhost` y no la IP: Web Push solo funciona en `localhost` o HTTPS)
    - Swagger: http://localhost:8080/q/swagger-ui
-   - Neo4j: http://localhost:7474
+   - Neo4j Browser: http://localhost:7474 (usuario `neo4j`, contraseña `NEO4J_PASSWORD` del `.env`)
+   - Consola de RustFS: http://localhost:9001 (`S3_ACCESS_KEY` / `S3_SECRET_KEY` del `.env`)
+
+La aplicación está pensada para usarse desde el mismo equipo (`http://localhost`). Desde otro equipo de la red no funciona sin cambiar `VITE_API_URL` y los orígenes CORS del backend, y Web Push exige `localhost` o HTTPS.
 
 Para instrucciones detalladas, ver [README-DOCKER.md](README-DOCKER.md).
 
@@ -310,7 +323,8 @@ Documentación interactiva: http://localhost:8080/q/swagger-ui
 | `POST` | `/auth/login` | No | Iniciar sesión (devuelve token y usuario) |
 | `GET` | `/usuarios/me` | Sí | Mi perfil |
 | `PUT` | `/usuarios/me` | Sí | Editar nombre y biografía |
-| `GET` | `/usuarios/{id}` | Sí | Perfil de otro usuario |
+| `GET` | `/usuarios/{id}` | Sí | Perfil de un usuario (el email solo se incluye en el perfil propio) |
+| `GET` | `/usuarios?buscar=texto` | Sí | Buscar usuarios por nombre (mínimo 2 caracteres, máximo 20 resultados) |
 | `POST` | `/social/seguir/{id}` | Sí | Seguir usuario |
 | `DELETE` | `/social/seguir/{id}` | Sí | Dejar de seguir |
 | `GET` | `/social/seguidores/{id}` | Sí | Seguidores de un usuario |
@@ -322,10 +336,11 @@ Documentación interactiva: http://localhost:8080/q/swagger-ui
 | `GET` | `/social/grafo` | Sí | Nodos y enlaces para dibujar el grafo |
 | `POST` | `/posts` | Sí | Crear publicación (`multipart/form-data`: `texto` e `imagen` opcional) |
 | `GET` | `/posts/{id}` | Sí | Detalle de publicación |
+| `GET` | `/posts?autor={id}&pagina=0` | Sí | Publicaciones de un usuario (pestaña "Publicaciones" del perfil) |
 | `GET` | `/feed?pagina=0` | Sí | Feed personalizado (20 por página) |
 | `POST` | `/posts/{id}/reaccion` | Sí | Reaccionar (`{"tipo": "LIKE" \| "LOVE" \| "HAHA" \| "WOW"}`) |
 | `DELETE` | `/posts/{id}/reaccion` | Sí | Quitar reacción |
-| `GET` | `/media/{clave}` | No | Sirve la imagen guardada en S3 |
+| `GET` | `/media/{clave}` | No | Sirve la imagen guardada en S3 (`503` si el almacenamiento no responde) |
 | `POST` | `/chat/conversaciones` | Sí | Iniciar conversación (`{"usuarioId": "..."}`) |
 | `GET` | `/chat/conversaciones` | Sí | Mis conversaciones |
 | `GET` | `/chat/conversaciones/{id}/mensajes` | Sí | Historial de la conversación |
@@ -334,6 +349,8 @@ Documentación interactiva: http://localhost:8080/q/swagger-ui
 | `POST` | `/push/suscripcion` | Sí | Registrar suscripción push |
 | `DELETE` | `/push/suscripcion?endpoint=...` | Sí | Cancelar suscripción push |
 | `GET` | `/q/health` | No | Estado del backend |
+
+Códigos de respuesta: `200`/`201`/`204` en éxito, `400` datos inválidos, `401` sin token o token inválido, `404` recurso inexistente, `409` email ya registrado y `503` si Neo4j o el almacenamiento no responden. Los errores devuelven `{"error": "mensaje"}`.
 
 Los endpoints se agrupan por recurso (`/auth`, `/usuarios`, `/social`, `/posts`, `/feed`, `/chat`, `/push`). Detalle de cómo se usa REST en la [sección 15](#15-uso-de-rest).
 
@@ -562,21 +579,38 @@ ORDER BY m.fecha ASC
 
 El patrón parte del usuario que consulta, por lo que solo ve el historial de conversaciones en las que participa.
 
+### 14. Búsqueda de usuarios y 15. Publicaciones de un autor
+
+```cypher
+// Búsqueda por nombre; indica además si ya lo sigo
+MATCH (u:Usuario)
+WHERE u.id <> $yo AND toLower(u.nombre) CONTAINS toLower($texto)
+RETURN u.id AS id, u.nombre AS nombre, u.bio AS bio,
+       EXISTS { (:Usuario {id: $yo})-[:SIGUE]->(u) } AS sigo
+ORDER BY u.nombre, u.id
+LIMIT 20
+```
+
+Las publicaciones de un autor (`PostRepository.deAutor`) usan la misma consulta del feed, partiendo de `(autor:Usuario {id: $autor})-[:PUBLICA]->(p:Post)`.
+
 ### Cómo probarlas en Neo4j Browser
 
 1. Abrir http://localhost:7474 (usuario `neo4j`, contraseña `NEO4J_PASSWORD` del `.env`).
-2. Cargar datos de demostración con `scripts/seed.ps1` y `scripts/seed-posts.ps1` (ver [Guía de datos de prueba](#guía-de-datos-de-prueba)).
+2. Cargar datos de demostración con `docker compose --profile seed run --rm seed` (ver [Guía de datos de prueba](#guía-de-datos-de-prueba)).
 3. Definir un parámetro y ejecutar cualquier consulta: `:param id => 'pegar-aqui-el-id-de-ana'`.
 4. Para ver todo el grafo social: `MATCH (a:Usuario)-[r:SIGUE]->(b:Usuario) RETURN a, r, b`.
 
 #### Guía de datos de prueba
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\seed.ps1        # 8 usuarios (clave demo1234) y una red de seguimiento
-powershell -ExecutionPolicy Bypass -File .\scripts\seed-posts.ps1  # publicaciones de ejemplo
+Cualquier sistema operativo, con Docker:
+
+```bash
+docker compose --profile seed run --rm seed
 ```
 
-Los scripts usan la API REST del backend (no insertan datos directamente en Neo4j), así que el backend debe estar en ejecución.
+Alternativas equivalentes: `sh scripts/seed.sh` (Linux, macOS o Git Bash; necesita `curl`) o, en Windows, `scripts\seed.ps1` y `scripts\seed-posts.ps1` con PowerShell.
+
+Crea 8 usuarios (clave `demo1234`), una red de seguimiento y 5 publicaciones. Usa la API REST del backend (no inserta datos directamente en Neo4j), así que el backend debe estar en ejecución. Se puede ejecutar varias veces sin duplicar datos.
 
 ---
 
@@ -599,7 +633,9 @@ Los scripts usan la API REST del backend (no insertan datos directamente en Neo4
 
 - API en Quarkus con RESTEasy Reactive (`quarkus-rest` + `quarkus-rest-jackson`); cuerpos en JSON, salvo `POST /posts`, que es `multipart/form-data` porque lleva texto e imagen.
 - **Autenticación:** el cliente envía `Authorization: Bearer <JWT>`. El token se firma con RSA, caduca a las 8 horas y su `subject` es el id del usuario. Los recursos privados llevan `@Authenticated`; son públicos solo `/auth/*`, `/push/clave-publica` y `/media/*` (una etiqueta `<img>` no puede enviar el token; las claves son UUID y se valida su formato).
-- Validación de entrada con Hibernate Validator y errores como `{"error": "..."}` con el código HTTP correspondiente (400, 401, 404, 409).
+- Validación de entrada con Hibernate Validator y errores como `{"error": "..."}` con el código HTTP correspondiente (400, 401, 404, 409, 503).
+- **Autorización:** el usuario que actúa sale siempre del token, nunca de un id enviado por el cliente. Por eso nadie puede publicar, seguir, reaccionar o editar el perfil en nombre de otro.
+- **Subida de imágenes:** el tipo se decide por el contenido real del archivo (sus primeros bytes), no por el `Content-Type` que declara el cliente; solo se aceptan JPG, PNG, WEBP y GIF de hasta 10 MB.
 - Documentación interactiva con OpenAPI/Swagger.
 
 **Por qué REST y no otra cosa:** es sin estado, fácil de paginar (`/feed?pagina=N`) y de cachear (las imágenes llevan `Cache-Control`), y no exige mantener una conexión abierta por cada operación puntual.
@@ -661,7 +697,7 @@ Cliente ◀── respuesta ── Servidor      una conexión persistente; cual
 
 ### Cómo comprobar el tiempo real
 
-Abrir dos navegadores (o una ventana normal y otra de incógnito) con dos usuarios distintos, iniciar una conversación desde uno y escribir: el mensaje aparece en el otro sin recargar la página.
+Abrir dos navegadores distintos con dos usuarios distintos, iniciar una conversación desde uno y escribir: el mensaje aparece en el otro sin recargar la página.
 
 ---
 
@@ -768,6 +804,7 @@ Luego abrir Pull Request en GitHub.
 - Nunca hacer push directo a `main`
 - Prefijos: `feat`, `fix`, `chore`, `docs`, `refactor`
 - Nunca subir `.env`, `.pem` ni llaves VAPID
+- Los scripts `.sh` y `mvnw` se guardan con saltos de línea LF (ver `.gitattributes`)
 
 ---
 
@@ -780,7 +817,8 @@ Luego abrir Pull Request en GitHub.
 | Error de autenticación Neo4j | `docker compose down -v` y volver a levantar |
 | Puerto ocupado | `netstat -ano \| findstr :8080` para identificar |
 | Backend no inicia | Verifica que `jwt-keys` terminó con `exited (0)` y revisa `docker compose logs backend` |
-| El build falla descargando dependencias | Es la red: vuelve a ejecutar `docker compose up -d --build` |
+| El build falla descargando dependencias | Es la red: vuelve a ejecutar `docker compose up -d --build` (continúa donde se quedó) |
+| El puerto 80 está ocupado | Detén el programa que lo usa (IIS, XAMPP…) o cambia `"80:80"` por `"8081:80"` en `docker-compose.yml` y añade `http://localhost:8081` a `quarkus.http.cors.origins` |
 | "No se pudieron activar las notificaciones" | No usar incógnito; en el icono a la izquierda de la URL, poner Notificaciones en Permitir y recargar |
 | No llega la notificación | Solo se envía cuando publica alguien a quien sigues; revisa `docker compose logs backend \| Select-String "PUSH"` y las notificaciones de Windows para el navegador |
 
@@ -808,8 +846,30 @@ Cada decisión responde a qué problema resuelve el componente y por qué se eli
 | **Bcrypt para contraseñas** | Proteger credenciales | Solo se guarda el hash (empieza con `$2a$`) |
 | **Docker Compose** | Despliegue reproducible | Un solo comando levanta Neo4j, S3, backend y frontend; las llaves JWT y VAPID se generan solas |
 
+### Pruebas automatizadas
+
+El backend incluye pruebas unitarias de las piezas sin dependencias externas (generación de llaves VAPID y detección del tipo real de una imagen): `cd backend && ./mvnw test`. El resto se verifica con el flujo manual descrito en este README; no hay pruebas de integración automatizadas.
+
+### Comportamiento ante fallos
+
+| Situación | Qué ocurre |
+|---|---|
+| Neo4j detenido | La API responde `503` con un mensaje claro en unos 5 segundos. Al volver Neo4j, el backend se reconecta solo |
+| Backend detenido o reiniciado | El frontend conserva la sesión y muestra "No pudimos conectar con el servidor" con un botón Reintentar. El chat indica "reconectando…" y vuelve a conectarse solo |
+| WebSocket cortado | Reintentos con espera creciente; los mensajes escritos durante el corte se envían al reconectar. El historial está en Neo4j |
+| Almacenamiento S3 detenido | Publicar con imagen responde `503`; publicar solo texto, el feed y el chat siguen funcionando. Si S3 no responde al arrancar, el backend arranca igual |
+| Fallo de Neo4j después de subir una imagen | La imagen se borra de S3 para no dejar archivos huérfanos |
+
 ### Limitaciones conocidas
 
+- **Solo `localhost`:** la URL del backend se fija al compilar el frontend y los orígenes CORS son `localhost`/`127.0.0.1`. Para otro dominio hay que cambiar `VITE_API_URL` y `quarkus.http.cors.origins`.
+- **Sin HTTPS:** es un despliegue local de demostración. En producción haría falta TLS, y el token del WebSocket dejaría de viajar en claro.
+- **Token en `localStorage`:** un XSS podría leerlo. React escapa todo el contenido que se muestra y no se usa `dangerouslySetInnerHTML`.
+- **Sin límite de intentos de inicio de sesión** ni revocación de tokens: el token caduca a las 8 horas.
+- **Sin borrado ni edición de publicaciones.**
+- **Llave VAPID de ejemplo en el historial de Git:** una versión antigua de `application.properties` traía un par VAPID de ejemplo. Se retiró y no se usa; las llaves reales se leen del `.env` o se generan al arrancar.
+- **Imágenes de contenedor sin versión fija** (`neo4j:5-community`, `rustfs/rustfs:latest`): una versión futura podría comportarse distinto.
+- **Dos usuarios que abren la misma conversación en el mismo instante** podrían crear dos conversaciones; no se ha observado en las pruebas.
 - El registro de conexiones WebSocket vive **en la memoria** de una instancia del backend. Con varias instancias haría falta un intermediario de mensajes (por ejemplo Redis o un broker) para repartir mensajes entre ellas.
 - El JWT viaja en la URL del WebSocket porque el navegador no permite cabeceras personalizadas al abrir la conexión.
 - El feed muestra solo publicaciones de los usuarios seguidos (no las propias).

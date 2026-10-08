@@ -4,7 +4,8 @@ import { Avatar } from '../components/Avatar';
 import { Toasts } from '../components/Toasts';
 import { useAuth } from '../auth/AuthContext';
 import { useToast } from '../hooks/useToast';
-import { mensajeAmigable } from '../services/posts';
+import { PostCard } from '../components/PostCard';
+import { POR_PAGINA, mensajeAmigable, obtenerPostsDeAutor } from '../services/posts';
 import {
   obtenerUsuario,
   obtenerEstado,
@@ -35,7 +36,10 @@ export function Perfil() {
   const [seguidores, setSeguidores] = useState(null);
   const [seguidos, setSeguidos] = useState(null);
   const [enComun, setEnComun] = useState(null);
-  const [tab, setTab] = useState('seguidores');
+  const [tab, setTab] = useState('publicaciones');
+  const [posts, setPosts] = useState(null);
+  const [paginaPosts, setPaginaPosts] = useState(0);
+  const [hayMasPosts, setHayMasPosts] = useState(false);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
   const [accion, setAccion] = useState('');
@@ -49,6 +53,16 @@ export function Perfil() {
     let activo = true;
     setCargando(true);
     setError('');
+    setPosts(null);
+    setPaginaPosts(0);
+    obtenerPostsDeAutor(idReal)
+      .then((lista) => {
+        if (!activo) return;
+        const datos = comoLista(lista);
+        setPosts(datos);
+        setHayMasPosts(datos.length === POR_PAGINA);
+      })
+      .catch(() => activo && setPosts([]));
     Promise.all([
       obtenerUsuario(idReal),
       esMio ? Promise.resolve(null) : obtenerEstado(idReal).catch(() => null),
@@ -78,6 +92,23 @@ export function Perfil() {
       activo = false;
     };
   }, [idReal, esMio]);
+
+  const cargarMasPosts = async () => {
+    try {
+      const datos = comoLista(await obtenerPostsDeAutor(idReal, paginaPosts + 1));
+      setPosts((lista) => {
+        const ids = new Set((lista || []).map((p) => p.id));
+        return [...(lista || []), ...datos.filter((p) => !ids.has(p.id))];
+      });
+      setPaginaPosts((n) => n + 1);
+      setHayMasPosts(datos.length === POR_PAGINA);
+    } catch (err) {
+      mostrar(mensajeAmigable(err, 'No pudimos cargar más publicaciones.'), 'error');
+    }
+  };
+
+  const actualizarPost = (nuevo) =>
+    setPosts((lista) => (lista || []).map((p) => (p.id === nuevo.id ? nuevo : p)));
 
   // Redirigir al chat pasando el contacto en el estado de navegación
   const irAChat = (contacto) => {
@@ -276,6 +307,15 @@ export function Perfil() {
         <button
           type="button"
           role="tab"
+          aria-selected={tab === 'publicaciones'}
+          className={`rs-tab ${tab === 'publicaciones' ? 'activo' : ''}`}
+          onClick={() => setTab('publicaciones')}
+        >
+          Publicaciones
+        </button>
+        <button
+          type="button"
+          role="tab"
           aria-selected={tab === 'seguidores'}
           className={`rs-tab ${tab === 'seguidores' ? 'activo' : ''}`}
           onClick={() => setTab('seguidores')}
@@ -304,6 +344,35 @@ export function Perfil() {
         )}
       </nav>
 
+      {tab === 'publicaciones' && (
+        <section>
+          {posts === null && <p className="rs-sug-nota">Cargando…</p>}
+          {posts?.length === 0 && (
+            <div className="rs-tarjeta rs-perfil-lista">
+              <p className="rs-sug-nota">
+                {esMio ? 'Todavía no has publicado nada. Publica desde Inicio.' : 'Todavía no ha publicado nada.'}
+              </p>
+            </div>
+          )}
+          {posts?.length > 0 && (
+            <div className="rs-lista">
+              {posts.map((post) => (
+                <PostCard key={post.id} post={post} onCambio={actualizarPost}
+                  onError={(m) => mostrar(m, 'error')} />
+              ))}
+            </div>
+          )}
+          {hayMasPosts && (
+            <div className="rs-mas">
+              <button type="button" className="rs-boton rs-boton--fantasma" onClick={cargarMasPosts}>
+                Ver más publicaciones
+              </button>
+            </div>
+          )}
+        </section>
+      )}
+
+      {tab !== 'publicaciones' && (
       <section className="rs-tarjeta rs-perfil-lista">
         {listaTab === null && <p className="rs-sug-nota">Cargando…</p>}
         {listaTab?.length === 0 && (
@@ -361,6 +430,7 @@ export function Perfil() {
           );
         })}
       </section>
+      )}
 
       <Toasts toasts={toasts} />
     </main>

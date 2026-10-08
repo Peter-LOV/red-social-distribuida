@@ -42,6 +42,14 @@ public class WebPushService {
         push = new PushService(claves.publica(), claves.privada(), asunto);
     }
 
+    private static String servicioDe(String endpoint) {
+        try {
+            return java.net.URI.create(endpoint).getHost();
+        } catch (Exception e) {
+            return "servicio push desconocido";
+        }
+    }
+
     void alNuevoPost(@ObservesAsync NuevoPostEvent evento) {
         Log.info("==> [PUSH] Evento recibido para autorId: " + evento.autorId() + " (" + evento.autorNombre() + ")");
         try {
@@ -55,7 +63,8 @@ public class WebPushService {
 
             for (var s : destinatarios) {
                 try {
-                    Log.info("==> [PUSH] Enviando notificación a: " + s.endpoint());
+                    // El endpoint completo es una credencial del dispositivo: en el log solo va el servicio
+                    Log.info("==> [PUSH] Enviando notificación mediante " + servicioDe(s.endpoint()));
                     // aes128gcm es la codificación estándar (RFC 8291) y la aceptan Chrome, Firefox, Edge y Safari
                     var resp = push.send(
                             new Notification(s.endpoint(), s.p256dh(), s.auth(), payload), Encoding.AES128GCM);
@@ -67,7 +76,7 @@ public class WebPushService {
                         repo.eliminarSuscripcion(s.endpoint());
                     }
                 } catch (Exception e) {
-                    Log.error("==> [PUSH] Error enviando a " + s.endpoint(), e);
+                    Log.error("==> [PUSH] Error enviando mediante " + servicioDe(s.endpoint()), e);
                 }
             }
         } catch (Exception e) {

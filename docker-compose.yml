@@ -8,8 +8,9 @@ services:
     container_name: redsocial-neo4j
     restart: unless-stopped
     ports:
-      - "7474:7474" # Neo4j Browser (HTTP) -> http://localhost:7474
-      - "7687:7687" # Bolt (lo usa el driver del backend)
+      # Solo accesibles desde este equipo (127.0.0.1): la base de datos no se expone a la red local
+      - "127.0.0.1:7474:7474" # Neo4j Browser (HTTP) -> http://localhost:7474
+      - "127.0.0.1:7687:7687" # Bolt (para Neo4j Browser y el modo dev)
     environment:
       NEO4J_AUTH: neo4j/${NEO4J_PASSWORD:?Define NEO4J_PASSWORD en el archivo .env}
     volumes:
@@ -27,8 +28,9 @@ services:
     container_name: redsocial-rustfs
     restart: unless-stopped
     ports:
-      - "9000:9000" # API S3       -> http://localhost:9000
-      - "9001:9001" # Consola web  -> http://localhost:9001
+      # Solo accesibles desde este equipo: el navegador nunca habla con S3, lo hace el backend
+      - "127.0.0.1:9000:9000" # API S3       -> http://localhost:9000
+      - "127.0.0.1:9001:9001" # Consola web  -> http://localhost:9001
     environment:
       RUSTFS_ACCESS_KEY: ${S3_ACCESS_KEY:?Define S3_ACCESS_KEY en el archivo .env}
       RUSTFS_SECRET_KEY: ${S3_SECRET_KEY:?Define S3_SECRET_KEY en el archivo .env}
@@ -97,6 +99,19 @@ services:
     restart: unless-stopped
     ports:
       - "80:80"
+    depends_on:
+      - backend
+
+  # --- Datos de demostración (opcional, cualquier sistema operativo) ---
+  # Uso:  docker compose --profile seed run --rm seed
+  seed:
+    image: curlimages/curl:8.10.1
+    profiles: ["seed"]
+    environment:
+      API: http://backend:8080
+    volumes:
+      - ./scripts/seed.sh:/seed.sh:ro
+    entrypoint: ["sh", "/seed.sh"]
     depends_on:
       - backend
 

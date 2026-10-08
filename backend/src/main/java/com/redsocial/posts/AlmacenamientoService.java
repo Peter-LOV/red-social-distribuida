@@ -1,11 +1,13 @@
 package com.redsocial.posts;
 
+import java.io.IOException;
 import java.util.Map;
 import java.util.UUID;
 
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.resteasy.reactive.multipart.FileUpload;
 
+import io.quarkus.logging.Log;
 import io.quarkus.runtime.StartupEvent;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
@@ -31,8 +33,24 @@ public class AlmacenamientoService {
     @ConfigProperty(name = "app.s3.bucket")
     String bucket;
 
-    /** Crea el bucket al arrancar si no existe. */
+    private volatile boolean bucketListo;
+
+    /**
+     * Crea el bucket al arrancar si no existe. Si el almacenamiento todavia no responde, el backend
+     * arranca igual (el resto de la API no depende de S3) y se reintenta en la primera subida.
+     */
     void alArrancar(@Observes StartupEvent ev) {
+        try {
+            asegurarBucket();
+        } catch (Exception e) {
+            Log.warn("==> [S3] El almacenamiento no responde al arrancar; se reintentara en la primera subida", e);
+        }
+    }
+
+    private void asegurarBucket() {
+        if (bucketListo) {
+            return;
+        }
         try {
             s3.headBucket(b -> b.bucket(bucket));
         } catch (S3Exception e) {
@@ -42,17 +60,27 @@ public class AlmacenamientoService {
                 throw e;
             }
         }
+        bucketListo = true;
     }
 
-    /** Sube la imagen y devuelve la clave del objeto (lo unico que se guarda en Neo4j). */
+    /**
+     * Sube la imagen y devuelve la clave del objeto (lo unico que se guarda en Neo4j).
+     * El tipo se decide por el contenido real del archivo, no por lo que declara el cliente.
+     */
     public String subir(FileUpload archivo) {
-        String ext = EXTENSIONES.get(archivo.contentType());
-        if (ext == null) {
-            throw new BadRequestException("Solo se permiten im\u00e1genes JPG, PNG, WEBP o GIF");
+        String tipo;
+        try {
+            tipo = FirmaImagen.detectar(archivo.uploadedFile());
+        } catch (IOException e) {
+            throw new BadRequestException("No se pudo leer el archivo enviado");
         }
-        String clave = UUID.randomUUID() + "." + ext;
+        if (tipo == null) {
+            throw new BadRequestException("Solo se permiten imágenes JPG, PNG, WEBP o GIF");
+        }
+        asegurarBucket();
+        String clave = UUID.randomUUID() + "." + EXTENSIONES.get(tipo);
         s3.putObject(
-                PutObjectRequest.builder().bucket(bucket).key(clave).contentType(archivo.contentType()).build(),
+                PutObjectRequest.builder().bucket(bucket).key(clave).contentType(tipo).build(),
                 RequestBody.fromFile(archivo.uploadedFile()));
         return clave;
     }

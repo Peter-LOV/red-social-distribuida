@@ -11,13 +11,14 @@ COPY .mvn .mvn
 COPY mvnw pom.xml ./
 
 # Windows guarda los scripts con saltos de línea CRLF; en Linux hay que convertirlos
-RUN sed -i 's/\r$//' mvnw \
-    && chmod +x mvnw \
-    && ./mvnw -B dependency:go-offline
+RUN sed -i 's/\r$//' mvnw && chmod +x mvnw
 
 COPY src src
 
-RUN ./mvnw -B package -DskipTests
+# La caché de Maven (/root/.m2) se conserva entre builds: si la red se corta a mitad de la
+# descarga, el siguiente intento continúa donde se quedó en lugar de empezar de cero.
+RUN --mount=type=cache,target=/root/.m2 \
+    ./mvnw -B package -DskipTests -Daether.connector.http.retryHandler.count=5
 
 
 FROM eclipse-temurin:21-jre

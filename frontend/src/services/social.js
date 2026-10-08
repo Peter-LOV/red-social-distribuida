@@ -11,5 +11,6 @@ export const obtenerEnComun = (id) => api(`/social/en-comun/${id}`);
 export const obtenerAlcanzables = () => api('/social/alcanzables');
 export const obtenerGrafo = () => api('/social/grafo');
 export const obtenerUsuario = (id) => api(`/usuarios/${id}`);
+export const buscarUsuarios = (texto) => api(`/usuarios?buscar=${encodeURIComponent(texto)}`);
 export const actualizarPerfil = (nombre, bio) =>
   api('/usuarios/me', { metodo: 'PUT', cuerpo: { nombre, bio } });

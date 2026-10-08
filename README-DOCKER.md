@@ -121,6 +121,16 @@ Deberías ver esto:
 
 ---
 
+## Datos de demostración (opcional)
+
+```powershell
+docker compose --profile seed run --rm seed
+```
+
+Crea 8 usuarios (`ana@demo.com` … `hugo@demo.com`, clave `demo1234`), una red de seguimiento y 5 publicaciones. Funciona en cualquier sistema operativo y se puede repetir.
+
+---
+
 ## Paso 6: Probar el flujo básico
 
 1. **Abre** http://localhost:80
