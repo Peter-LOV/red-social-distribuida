@@ -21,9 +21,14 @@ Proyecto de la asignatura Sistemas Distribuidos.
 11. [Estructura del repositorio](#11-estructura-del-repositorio)
 12. [API REST (endpoints actuales)](#12-api-rest-endpoints-actuales)
 13. [Modelo del grafo](#13-modelo-del-grafo)
-14. [Flujo de trabajo en Git](#14-flujo-de-trabajo-en-git)
-15. [Solución de problemas](#15-solución-de-problemas)
-16. [Decisiones técnicas](#16-decisiones-técnicas)
+14. [Consultas Cypher](#14-consultas-cypher)
+15. [Uso de REST](#15-uso-de-rest)
+16. [Uso de WebSocket (chat en tiempo real)](#16-uso-de-websocket-chat-en-tiempo-real)
+17. [Uso de Web Push](#17-uso-de-web-push-notificaciones-fuera-de-la-aplicación)
+18. [Dónde se guarda cada tipo de información](#18-dónde-se-guarda-cada-tipo-de-información)
+19. [Flujo de trabajo en Git](#19-flujo-de-trabajo-en-git)
+20. [Solución de problemas](#20-solución-de-problemas)
+21. [Decisiones técnicas](#21-decisiones-técnicas)
 
 ---
 
@@ -31,12 +36,10 @@ Proyecto de la asignatura Sistemas Distribuidos.
 
 | Integrante | Usuario GitHub | Área principal |
 |---|---|---|
-| _Nombre 1_ | @usuario1 | A. Usuarios y grafo social |
-| _Nombre 2_ | @usuario2 | B. Contenido, S3, feed y reacciones |
-| _Nombre 3_ | @usuario3 | C. Chat en tiempo real (WebSocket) |
-| _Nombre 4_ | @usuario4 | D. Infraestructura, Web Push, diagrama y documentación |
-
-> Completar con los datos reales del equipo.
+| _Nombre 1_ | Peter Orrala | A. Usuarios y grafo social |
+| _Nombre 2_ | Skay Alvarado | B. Contenido, S3, feed y reacciones |
+| _Nombre 3_ | Amy Tomala Silvestre | C. Chat en tiempo real (WebSocket) |
+| _Nombre 4_ | Ismael Anchundia | D. Infraestructura, Web Push, diagrama y documentación |
 
 ---
 
@@ -122,7 +125,7 @@ Proyecto de la asignatura Sistemas Distribuidos.
 
 ---
 
-## 6. Puesta en marcha con Docker ⭐
+## 6. Puesta en marcha con Docker 
 
 Esta es la forma más rápida de probar el proyecto sin instalar dependencias.
 
@@ -131,7 +134,6 @@ Esta es la forma más rápida de probar el proyecto sin instalar dependencias.
    git clone https://github.com/Peter-LOV/red-social-distribuida.git
    cd red-social-distribuida
    ```
-
 2. **Configurar credenciales:**
    ```powershell
    Copy-Item .env.example .env
@@ -229,14 +231,23 @@ cd frontend && npm run dev          # Frontend
 
 ## 9. Variables de entorno
 
-| Variable | Descripción | Ejemplo |
+| Variable | Descripción | Ejemplo / valor por defecto |
 |---|---|---|
-| `NEO4J_PASSWORD` | Contraseña de Neo4j (mínimo 8 caracteres) | `TuClaveNeo4j2026` |
-| `S3_ACCESS_KEY` | Usuario S3 (mínimo 8 caracteres) | `tuusuarios3` |
-| `S3_SECRET_KEY` | Contraseña S3 (mínimo 8 caracteres) | `TuClaveSecretaLarga` |
+| `NEO4J_PASSWORD` | Contraseña de Neo4j (mínimo 8 caracteres). **Obligatoria** | `TuClaveNeo4j2026` |
+| `NEO4J_USER` | Usuario de Neo4j | `neo4j` |
+| `NEO4J_URI` | Dirección Bolt de Neo4j. En Docker la fija el compose | `bolt://localhost:7687` (Docker: `bolt://neo4j:7687`) |
+| `S3_ACCESS_KEY` | Usuario S3 (mínimo 8 caracteres). **Obligatoria** | `tuusuarios3` |
+| `S3_SECRET_KEY` | Contraseña S3 (mínimo 8 caracteres). **Obligatoria** | `TuClaveSecretaLarga` |
+| `S3_ENDPOINT` | Dirección de la API S3. En Docker la fija el compose | `http://localhost:9000` (Docker: `http://rustfs:9000`) |
+| `S3_BUCKET` | Bucket de las imágenes; se crea solo al arrancar | `posts-media` |
 | `VAPID_PUBLIC_KEY` | Clave pública VAPID (generada con `npx web-push generate-vapid-keys`) | `BBtMvrOmBrpWspD1iLgb...` |
-| `VAPID_PRIVATE_KEY` | Clave privada VAPID | `KBEzGlWoyNi85Je2419Tw...` |
-| `VAPID_SUBJECT` | Subject VAPID | `mailto:admin@redsocial.local` |
+| `VAPID_PRIVATE_KEY` | Clave privada VAPID. **Secreto: no subir a Git** | `KBEzGlWoyNi85Je2419Tw...` |
+| `VAPID_SUBJECT` | Contacto del servidor para el servicio push | `mailto:admin@redsocial.local` |
+| `JWT_PUBLIC_KEY_PATH` | Ruta de la llave pública RSA (solo modo dev; en Docker la genera el servicio `jwt-keys`) | `/publicKey.pem` |
+| `JWT_PRIVATE_KEY_PATH` | Ruta de la llave privada RSA (solo modo dev) | `/privateKey.pem` |
+| `VITE_API_URL` | URL del backend que usa el frontend. En Docker se pasa como *build arg* desde el compose; en dev, en `frontend/.env` | `http://localhost:8080` |
+
+Todas se definen en el archivo `.env` de la raíz (plantilla en `.env.example`). `docker-compose.yml` las entrega a cada contenedor.
 
 ---
 
@@ -281,27 +292,36 @@ Documentación interactiva: http://localhost:8080/q/swagger-ui
 
 | Método | Ruta | Auth | Descripción |
 |---|---|---|---|
-| `POST` | `/auth/registro` | No | Registrar usuario |
-| `POST` | `/auth/login` | No | Iniciar sesión |
+| `POST` | `/auth/registro` | No | Registrar usuario (devuelve token y usuario) |
+| `POST` | `/auth/login` | No | Iniciar sesión (devuelve token y usuario) |
 | `GET` | `/usuarios/me` | Sí | Mi perfil |
-| `PUT` | `/usuarios/me` | Sí | Editar perfil |
+| `PUT` | `/usuarios/me` | Sí | Editar nombre y biografía |
 | `GET` | `/usuarios/{id}` | Sí | Perfil de otro usuario |
 | `POST` | `/social/seguir/{id}` | Sí | Seguir usuario |
 | `DELETE` | `/social/seguir/{id}` | Sí | Dejar de seguir |
-| `GET` | `/social/seguidores/{id}` | Sí | Seguidores |
-| `GET` | `/social/seguidos/{id}` | Sí | Seguidos |
-| `GET` | `/social/sugerencias` | Sí | Sugerencias |
-| `POST` | `/posts` | Sí | Crear publicación |
+| `GET` | `/social/seguidores/{id}` | Sí | Seguidores de un usuario |
+| `GET` | `/social/seguidos/{id}` | Sí | Usuarios seguidos por un usuario |
+| `GET` | `/social/estado/{id}` | Sí | Si lo sigo, si me sigue y sus contadores |
+| `GET` | `/social/sugerencias` | Sí | Sugerencias basadas en el grafo |
+| `GET` | `/social/en-comun/{id}` | Sí | Usuarios que sigo yo y también sigue `{id}` |
+| `GET` | `/social/alcanzables` | Sí | Usuarios alcanzables hasta en 3 saltos |
+| `GET` | `/social/grafo` | Sí | Nodos y enlaces para dibujar el grafo |
+| `POST` | `/posts` | Sí | Crear publicación (`multipart/form-data`: `texto` e `imagen` opcional) |
 | `GET` | `/posts/{id}` | Sí | Detalle de publicación |
-| `GET` | `/feed` | Sí | Feed personalizado |
-| `POST` | `/posts/{id}/reaccion` | Sí | Reaccionar |
+| `GET` | `/feed?pagina=0` | Sí | Feed personalizado (20 por página) |
+| `POST` | `/posts/{id}/reaccion` | Sí | Reaccionar (`{"tipo": "LIKE" \| "LOVE" \| "HAHA" \| "WOW"}`) |
 | `DELETE` | `/posts/{id}/reaccion` | Sí | Quitar reacción |
-| `POST` | `/chat/conversaciones` | Sí | Iniciar conversación |
+| `GET` | `/media/{clave}` | No | Sirve la imagen guardada en S3 |
+| `POST` | `/chat/conversaciones` | Sí | Iniciar conversación (`{"usuarioId": "..."}`) |
 | `GET` | `/chat/conversaciones` | Sí | Mis conversaciones |
-| `GET` | `/chat/conversaciones/{id}/mensajes` | Sí | Historial |
-| `GET` | `/push/clave-publica` | No | Clave VAPID |
-| `POST` | `/push/suscripcion` | Sí | Registrar suscripción |
-| `DELETE` | `/push/suscripcion` | Sí | Cancelar suscripción |
+| `GET` | `/chat/conversaciones/{id}/mensajes` | Sí | Historial de la conversación |
+| `WS` | `/ws/chat?token=<JWT>` | Sí (token en la URL) | Chat en tiempo real (ver [sección 16](#16-uso-de-websocket-chat-en-tiempo-real)) |
+| `GET` | `/push/clave-publica` | No | Clave pública VAPID |
+| `POST` | `/push/suscripcion` | Sí | Registrar suscripción push |
+| `DELETE` | `/push/suscripcion?endpoint=...` | Sí | Cancelar suscripción push |
+| `GET` | `/q/health` | No | Estado del backend |
+
+Los endpoints se agrupan por recurso (`/auth`, `/usuarios`, `/social`, `/posts`, `/feed`, `/chat`, `/push`). Detalle de cómo se usa REST en la [sección 15](#15-uso-de-rest).
 
 ---
 
@@ -323,9 +343,379 @@ Documentación interactiva: http://localhost:8080/q/swagger-ui
 (:Usuario)-[:TIENE_SUSCRIPCION]->(:Suscripcion)
 ```
 
+| Relación | Propiedades | Para qué sirve |
+|---|---|---|
+| `SIGUE` | `desde` (fecha) | Grafo social: seguidores, seguidos, sugerencias, feed, destinatarios de Web Push |
+| `PUBLICA` | — | Une a cada autor con sus publicaciones; con `SIGUE` forma el feed |
+| `REACCIONA` | `tipo` (`LIKE`, `LOVE`, `HAHA`, `WOW`), `fecha` | Reacciones; una por usuario y publicación |
+| `PARTICIPA_EN` | — | Los dos usuarios de una conversación |
+| `CONTIENE` / `ENVIO` | — | Mensajes de una conversación y su autor |
+| `TIENE_SUSCRIPCION` | — | Dispositivos del usuario registrados para Web Push |
+
+**Restricciones e índices** (se crean solos al arrancar el backend):
+
+- `Usuario.id` y `Usuario.email` únicos.
+- `Post.id` único e índice sobre `Post.fecha`.
+- `Conversacion.id` y `Mensaje.id` únicos e índice sobre `Mensaje.fecha`.
+- `Suscripcion.endpoint` único.
+
+**Separación de datos:** `Post.mediaKey` solo guarda la clave del objeto en S3; la imagen nunca se almacena en Neo4j (ver [sección 18](#18-dónde-se-guarda-cada-tipo-de-información)).
+
 ---
 
-## 14. Flujo de trabajo en Git
+## 14. Consultas Cypher
+
+Todo el Cypher vive en los repositorios del backend (`GrafoRepository`, `PostRepository`, `ChatRepository`, `PushRepository`, `UsuarioRepository`) y usa siempre **parámetros** (`$id`, `$yo`...), nunca concatenación de texto, para evitar inyección Cypher.
+
+| # | Consulta | Método | Niveles | Resuelve |
+|---|---|---|---|---|
+| 1 | Seguir (MERGE) | `GrafoRepository.seguir` | 1 | Crear `SIGUE` sin duplicarla |
+| 2 | Seguidores | `GrafoRepository.seguidores` | 1 | Quién sigue a un usuario |
+| 3 | Seguidos | `GrafoRepository.seguidos` | 1 | A quién sigue un usuario |
+| 4 | Usuarios en común | `GrafoRepository.enComun` | 2 (patrón en V) | A quién seguimos ambos |
+| 5 | **Sugerencias** ⭐ | `GrafoRepository.sugerencias` | 2 | Usuarios recomendados |
+| 6 | **Alcanzables** ⭐ | `GrafoRepository.alcanzables` | 1 a 3 (longitud variable) | Usuarios alcanzables por la red |
+| 7 | **Feed** ⭐ | `PostRepository.feed` | 2 (`SIGUE` → `PUBLICA`) | Publicaciones de la red del usuario |
+| 8 | Estado de relación | `GrafoRepository.estado` | 1 | Botón Seguir y contadores del perfil |
+| 9 | Grafo completo | `GrafoRepository.grafo` | 1 | Visualización del grafo |
+| 10 | Reaccionar (MERGE) | `PostRepository.reaccionar` | 1 | Crear o cambiar `REACCIONA` |
+| 11 | Destinatarios de Web Push | `PushRepository.destinatarios` | 2 (`SIGUE` → `TIENE_SUSCRIPCION`) | A quién notificar |
+| 12 | Obtener o crear conversación | `ChatRepository.obtenerOCrearConversacion` | 2 | Una sola conversación por pareja |
+| 13 | Historial de conversación | `ChatRepository.obtenerHistorial` | 3 | Mensajes ordenados de una conversación |
+
+Las marcadas con ⭐ son las que recorren relaciones de **más de un nivel** y responden a los problemas pedidos: recomendados, alcanzables y publicaciones de la red de un usuario.
+
+### 1. Seguir (MERGE)
+
+```cypher
+MATCH (a:Usuario {id: $yo}), (b:Usuario {id: $otro})
+WHERE a <> b
+MERGE (a)-[r:SIGUE]->(b)
+ON CREATE SET r.desde = datetime()
+RETURN count(r) AS n
+```
+
+`MERGE` hace la operación idempotente: seguir dos veces no duplica la relación. Dejar de seguir es `MATCH (:Usuario {id:$yo})-[r:SIGUE]->(:Usuario {id:$otro}) DELETE r`.
+
+### 2. Seguidores y 3. Seguidos
+
+```cypher
+// Seguidores de $id
+MATCH (u:Usuario)-[:SIGUE]->(:Usuario {id: $id})
+RETURN u.id AS id, u.nombre AS nombre, u.bio AS bio
+ORDER BY u.nombre
+
+// Seguidos por $id
+MATCH (:Usuario {id: $id})-[:SIGUE]->(u:Usuario)
+RETURN u.id AS id, u.nombre AS nombre, u.bio AS bio
+ORDER BY u.nombre
+```
+
+### 4. Usuarios en común (patrón en V)
+
+```cypher
+MATCH (a:Usuario {id: $yo})-[:SIGUE]->(comun:Usuario)<-[:SIGUE]-(b:Usuario {id: $otro})
+RETURN comun.id AS id, comun.nombre AS nombre, comun.bio AS bio
+ORDER BY comun.nombre
+```
+
+Se muestra en el perfil de otro usuario: "a quién seguimos los dos".
+
+### 5. Sugerencias: amigos de amigos ⭐
+
+```cypher
+MATCH (yo:Usuario {id: $id})-[:SIGUE]->(amigo:Usuario)-[:SIGUE]->(c:Usuario)
+WHERE c <> yo AND NOT (yo)-[:SIGUE]->(c)
+WITH c, collect(DISTINCT amigo.nombre) AS mediadores
+RETURN c.id AS id, c.nombre AS nombre,
+       size(mediadores) AS enComun,
+       mediadores[0..3] AS via,
+       COUNT { (c)<-[:SIGUE]-() } AS popularidad
+ORDER BY enComun DESC, popularidad DESC, nombre
+LIMIT 10
+```
+
+**Criterio de recomendación (diseñado por el grupo):**
+
+1. *Candidatos:* usuarios a 2 saltos (`yo → amigo → C`) que yo todavía no sigo y que no soy yo.
+2. *Ranking principal (`enComun`):* a cuántos de **mis seguidos** sigue ya el candidato. Más conexiones a través de gente que yo elegí seguir significa más probabilidad de afinidad.
+3. *Desempate (`popularidad`):* número total de seguidores del candidato, y luego el nombre para un orden estable.
+4. *Explicabilidad (`via`):* hasta 3 nombres de los mediadores, para que la interfaz diga "Lo siguen Ana y Beto".
+5. *Límite:* 10 sugerencias.
+
+Limitación conocida: un usuario que no sigue a nadie no recibe sugerencias, porque no hay primer salto desde el que recorrer (problema de "arranque en frío").
+
+### 6. Usuarios alcanzables hasta 3 saltos ⭐
+
+```cypher
+MATCH p = (yo:Usuario {id: $id})-[:SIGUE*1..3]->(u:Usuario)
+WHERE u <> yo
+WITH u, min(length(p)) AS saltos
+RETURN u.id AS id, u.nombre AS nombre, saltos
+ORDER BY saltos, nombre
+LIMIT 50
+```
+
+Recorrido de **longitud variable**. Si un usuario es alcanzable por varios caminos, se queda con el más corto (`min(length(p))`). Cypher no permite parametrizar el rango `*1..3`, por eso el 3 va fijo en la consulta.
+
+### 7. Feed personalizado ⭐
+
+```cypher
+MATCH (:Usuario {id: $yo})-[:SIGUE]->(autor:Usuario)-[:PUBLICA]->(p:Post)
+OPTIONAL MATCH (:Usuario)-[r:REACCIONA]->(p)
+WITH p, autor, count(r) AS reacciones
+OPTIONAL MATCH (:Usuario {id: $yo})-[mia:REACCIONA]->(p)
+RETURN p.id AS id, p.texto AS texto, p.mediaKey AS mediaKey,
+       toString(p.fecha) AS fecha, autor.id AS autorId, autor.nombre AS autorNombre,
+       reacciones, mia IS NOT NULL AS yaReaccione
+ORDER BY p.fecha DESC, p.id
+SKIP $saltar LIMIT $limite
+```
+
+El feed **sale del grafo**: primero se recorre `SIGUE` y luego `PUBLICA`, así que solo aparecen publicaciones de las personas que sigo (no las "últimas de todos"). Incluye el total de reacciones y si ya reaccioné yo. Se pagina de 20 en 20 con el parámetro `pagina`. El feed no incluye las publicaciones propias.
+
+### 8. Estado de relación entre dos usuarios
+
+```cypher
+MATCH (u:Usuario {id: $otro})
+RETURN EXISTS { (:Usuario {id: $yo})-[:SIGUE]->(u) } AS sigo,
+       EXISTS { (u)-[:SIGUE]->(:Usuario {id: $yo}) } AS meSigue,
+       COUNT { (u)<-[:SIGUE]-() } AS seguidores,
+       COUNT { (u)-[:SIGUE]->() } AS seguidos
+```
+
+### 9. Grafo completo (visualización)
+
+```cypher
+MATCH (u:Usuario)
+OPTIONAL MATCH (u)-[:SIGUE]->(v:Usuario)
+RETURN u.id AS id, u.nombre AS nombre, collect(v.id) AS sigue
+```
+
+El backend lo transforma a `{ nodos: [{id, nombre}], enlaces: [{source, target}] }` y el frontend lo dibuja con `react-force-graph-2d`.
+
+### 10. Reaccionar
+
+```cypher
+MATCH (u:Usuario {id: $yo}), (p:Post {id: $post})
+MERGE (u)-[r:REACCIONA]->(p)
+ON CREATE SET r.tipo = $tipo, r.fecha = datetime()
+ON MATCH SET r.tipo = $tipo
+RETURN COUNT { (:Usuario)-[:REACCIONA]->(p) } AS total
+```
+
+Un usuario tiene como máximo una reacción por publicación; si vuelve a reaccionar, cambia el `tipo`.
+
+### 11. Destinatarios de Web Push
+
+```cypher
+MATCH (seguidor:Usuario)-[:SIGUE]->(:Usuario {id: $autorId})
+MATCH (seguidor)-[:TIENE_SUSCRIPCION]->(s:Suscripcion)
+RETURN s.endpoint AS endpoint, s.p256dh AS p256dh, s.auth AS auth
+```
+
+Cuando alguien publica, se notifica a sus seguidores que tienen al menos una suscripción push registrada.
+
+### 12. Obtener o crear la conversación entre dos usuarios
+
+```cypher
+MATCH (a:Usuario {id: $yo}), (b:Usuario {id: $otro})
+WHERE a <> b
+MERGE (a)-[:PARTICIPA_EN]->(c:Conversacion)<-[:PARTICIPA_EN]-(b)
+ON CREATE SET c.id = $nuevoId, c.creadaEn = datetime()
+RETURN c.id AS id
+```
+
+El patrón del `MERGE` busca una conversación que ya una a los dos; si no existe, la crea. Así hay una única conversación por pareja.
+
+### 13. Historial de una conversación
+
+```cypher
+MATCH (:Usuario {id: $yo})-[:PARTICIPA_EN]->(c:Conversacion {id: $conv})
+      -[:CONTIENE]->(m:Mensaje)<-[:ENVIO]-(autor:Usuario)
+RETURN m.id AS id, m.texto AS texto, toString(m.fecha) AS fecha, autor.id AS autorId
+ORDER BY m.fecha ASC
+```
+
+El patrón parte del usuario que consulta, por lo que solo ve el historial de conversaciones en las que participa.
+
+### Cómo probarlas en Neo4j Browser
+
+1. Abrir http://localhost:7474 (usuario `neo4j`, contraseña `NEO4J_PASSWORD` del `.env`).
+2. Cargar datos de demostración con `scripts/seed.ps1` y `scripts/seed-posts.ps1` (ver [Guía de datos de prueba](#guía-de-datos-de-prueba)).
+3. Definir un parámetro y ejecutar cualquier consulta: `:param id => 'pegar-aqui-el-id-de-ana'`.
+4. Para ver todo el grafo social: `MATCH (a:Usuario)-[r:SIGUE]->(b:Usuario) RETURN a, r, b`.
+
+#### Guía de datos de prueba
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\seed.ps1        # 8 usuarios (clave demo1234) y una red de seguimiento
+powershell -ExecutionPolicy Bypass -File .\scripts\seed-posts.ps1  # publicaciones de ejemplo
+```
+
+Los scripts usan la API REST del backend (no insertan datos directamente en Neo4j), así que el backend debe estar en ejecución.
+
+---
+
+## 15. Uso de REST
+
+**Qué es:** comunicación *petición → respuesta* sobre HTTP. El cliente pregunta, el servidor responde y la interacción termina; el servidor no guarda estado de la conversación entre peticiones.
+
+**Qué problema resuelve aquí:** todas las operaciones convencionales de la red social, es decir, las que el usuario solicita de forma puntual y cuya respuesta no necesita ser empujada por el servidor.
+
+| Grupo | Rutas | Qué se resuelve |
+|---|---|---|
+| Autenticación | `/auth/*` | Registro e inicio de sesión; devuelve un JWT |
+| Perfiles | `/usuarios/*` | Consultar y editar perfiles |
+| Grafo social | `/social/*` | Seguir, dejar de seguir, seguidores, seguidos, sugerencias, en común, alcanzables, grafo |
+| Contenido | `/posts/*`, `/feed`, `/media/*` | Publicar (con imagen), feed, reacciones, servir imágenes |
+| Chat (historial) | `/chat/*` | Crear conversación, listar conversaciones, leer historial |
+| Notificaciones | `/push/*` | Entregar la clave pública VAPID y registrar suscripciones |
+
+**Cómo está implementado:**
+
+- API en Quarkus con RESTEasy Reactive (`quarkus-rest` + `quarkus-rest-jackson`); cuerpos en JSON, salvo `POST /posts`, que es `multipart/form-data` porque lleva texto e imagen.
+- **Autenticación:** el cliente envía `Authorization: Bearer <JWT>`. El token se firma con RSA, caduca a las 8 horas y su `subject` es el id del usuario. Los recursos privados llevan `@Authenticated`; son públicos solo `/auth/*`, `/push/clave-publica` y `/media/*` (una etiqueta `<img>` no puede enviar el token; las claves son UUID y se valida su formato).
+- Validación de entrada con Hibernate Validator y errores como `{"error": "..."}` con el código HTTP correspondiente (400, 401, 404, 409).
+- Documentación interactiva con OpenAPI/Swagger.
+
+**Por qué REST y no otra cosa:** es sin estado, fácil de paginar (`/feed?pagina=N`) y de cachear (las imágenes llevan `Cache-Control`), y no exige mantener una conexión abierta por cada operación puntual.
+
+---
+
+## 16. Uso de WebSocket (chat en tiempo real)
+
+### REST frente a WebSocket
+
+```text
+REST                                   WebSocket
+Cliente ── petición ──▶ Servidor       Cliente ◀════════════▶ Servidor
+Cliente ◀── respuesta ── Servidor      una conexión persistente; cualquiera
+(una conexión por petición;            de los dos lados envía cuando quiere
+ el servidor nunca habla primero)
+```
+
+| | REST / HTTP | WebSocket |
+|---|---|---|
+| Modelo | Petición → respuesta | Conexión persistente y bidireccional |
+| Quién inicia el intercambio | Siempre el cliente | Cliente **o servidor** |
+| Estado | Sin estado | Conexión abierta con estado |
+| Para recibir novedades | El cliente tiene que preguntar (polling) | El servidor las empuja al instante |
+| Uso en este proyecto | CRUD, grafo, feed, historial | Entrega de mensajes del chat en tiempo real |
+
+**Por qué no hacer polling con REST:** para enterarse de un mensaje nuevo, el cliente tendría que repetir peticiones cada pocos segundos. Eso genera tráfico inútil, añade latencia y no escala. Con WebSocket el servidor envía el mensaje en el momento en que llega.
+
+### Cómo está implementado
+
+- **Endpoint:** `ws://<host>:8080/ws/chat?token=<JWT>`, clase `ChatSocket` (`quarkus-websockets-next`).
+- **Autenticación:** el navegador no permite cabeceras personalizadas al abrir un WebSocket, así que el JWT va en la URL. Al abrir la conexión, el servidor valida firma y caducidad con `JWTParser`; si el token falta o es inválido, cierra la conexión.
+- **Registro de conexiones:** un mapa en memoria `usuarioId → conexiones abiertas`, que admite varias pestañas por usuario.
+- **Mensaje del cliente al servidor:**
+
+  ```json
+  { "conversacionId": "…", "texto": "hola" }
+  ```
+
+- **Mensaje del servidor al cliente:**
+
+  ```json
+  { "tipo": "mensaje", "id": "…", "conversacionId": "…", "autorId": "…", "texto": "hola", "fecha": "…" }
+  ```
+
+- **Flujo al enviar un mensaje:**
+  1. El servidor identifica al emisor por su conexión.
+  2. Guarda el mensaje en Neo4j: `(:Conversacion)-[:CONTIENE]->(:Mensaje)` y `(:Usuario)-[:ENVIO]->(:Mensaje)`.
+  3. Entrega el mensaje a todas las conexiones del destinatario **y** a las demás pestañas del emisor.
+- **Inicio de conversación, lista de conversaciones e historial:** por REST (`/chat/*`), porque son consultas puntuales. El historial se lee de Neo4j, no depende de la conexión.
+- **Reconexión:** si la conexión se cae, el cliente intenta reconectar automáticamente.
+
+### Cómo comprobar el tiempo real
+
+Abrir dos navegadores (o una ventana normal y otra de incógnito) con dos usuarios distintos, iniciar una conversación desde uno y escribir: el mensaje aparece en el otro sin recargar la página.
+
+---
+
+## 17. Uso de Web Push (notificaciones fuera de la aplicación)
+
+**Qué problema resuelve:** avisar al usuario de una publicación nueva **aunque la aplicación esté cerrada**. Un WebSocket no sirve para esto, porque solo existe mientras la página está abierta, y una alerta dibujada con React tampoco.
+
+### Flujo completo
+
+```text
+Anthony sigue a Carlos
+
+ 1. Anthony pulsa "activar notificaciones"
+      navegador ──▶ Service Worker (sw.js) + PushManager.subscribe(clave pública VAPID)
+      navegador ──▶ POST /push/suscripcion ──▶ Neo4j: (Anthony)-[:TIENE_SUSCRIPCION]->(:Suscripcion)
+
+ 2. Carlos publica (POST /posts)
+      backend ──▶ evento NuevoPostEvent (CDI, asíncrono; la publicación no espera al envío)
+      WebPushService ──▶ consulta en Neo4j los seguidores de Carlos con suscripción
+      WebPushService ──▶ envía el mensaje cifrado, firmado con VAPID, al servicio push del navegador (FCM, Mozilla…)
+
+ 3. El servicio push entrega el mensaje al navegador de Anthony, incluso con la pestaña cerrada
+      Service Worker (evento "push") ──▶ muestra la notificación del sistema
+      Anthony hace clic ──▶ evento "notificationclick" ──▶ abre /post/{id} en la aplicación
+```
+
+### Piezas
+
+| Pieza | Dónde | Función |
+|---|---|---|
+| Claves VAPID | Variables `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` | Identifican al servidor ante el servicio push |
+| `GET /push/clave-publica` | `PushResource` | Entrega al navegador la clave pública para suscribirse |
+| `POST/DELETE /push/suscripcion` | `PushResource`, `PushRepository` | Guarda o elimina la suscripción en Neo4j |
+| `NuevoPostEvent` | `PostResource` → `WebPushService` | Desacopla la publicación del envío de notificaciones |
+| `WebPushService` | backend (librería `web-push`) | Calcula destinatarios, cifra y envía |
+| `frontend/public/sw.js` | navegador | Recibe el `push`, muestra la notificación y gestiona el clic |
+| `frontend/src/push.js` | frontend | Registra el Service Worker, pide permiso y se suscribe |
+
+**Contenido de la notificación:** `{ "titulo": "<autor> publicó algo nuevo", "cuerpo": "<resumen del texto>", "url": "/post/<id>" }`. La ruta `/post/:id` de React muestra el detalle de la publicación, que es el recurso al que dirige la notificación.
+
+**Suscripciones caducadas:** si el servicio push responde 404 o 410, la suscripción se elimina de Neo4j.
+
+**Requisitos del navegador:** HTTPS o `localhost`, soporte de Service Worker y que el usuario conceda el permiso de notificaciones.
+
+### Cómo probarlo
+
+1. Con dos usuarios, A sigue a B.
+2. A inicia sesión y activa las notificaciones desde la barra de navegación.
+3. A cierra la pestaña de la aplicación.
+4. B publica algo.
+5. A recibe la notificación del sistema; al hacer clic, se abre `/post/<id>`.
+
+---
+
+## 18. Dónde se guarda cada tipo de información
+
+| Información | Dónde vive | Cómo se comunica el backend | Por qué ahí |
+|---|---|---|---|
+| Usuarios, relaciones `SIGUE`, publicaciones, reacciones | **Neo4j** | Cypher por Bolt | Son datos relacionales de grafo: se recorren relaciones en vez de hacer JOIN |
+| Conversaciones y mensajes del chat | **Neo4j** | Cypher por Bolt | Quedan unidos a los usuarios y permiten leer el historial |
+| Suscripciones Web Push | **Neo4j** (`:Suscripcion`) | Cypher por Bolt | Se relacionan con el usuario y se buscan a partir de sus seguidores |
+| Imágenes de las publicaciones | **Object Storage S3 (RustFS)** | API S3 (AWS SDK) | Los archivos binarios no deben guardarse en la base de datos |
+| Referencia a la imagen | `Post.mediaKey` en Neo4j | — | Lo único que Neo4j conserva del archivo |
+| Token de sesión (JWT) | Navegador (`localStorage`) | Cabecera `Authorization` | El backend no guarda sesiones, solo verifica la firma |
+| Llaves JWT (RSA) | Volumen Docker `jwt_keys` | — | Se generan solas en el primer arranque |
+| Claves VAPID | Variables de entorno (`.env`) | — | Son secretos de configuración, no de negocio |
+
+### Flujo de una publicación con imagen
+
+```text
+React ──POST /posts (multipart: texto + imagen)──▶ Quarkus
+   Quarkus valida tipo (JPG, PNG, WEBP o GIF) y tamaño (máx. 10 MB)
+   Quarkus ──putObject──▶ RustFS (S3), clave: <uuid>.<ext>
+   Quarkus ──Cypher──▶ Neo4j: (:Usuario)-[:PUBLICA]->(:Post {mediaKey: "<uuid>.<ext>"})
+   Quarkus ──evento──▶ WebPushService
+React ──GET /media/<uuid>.<ext>──▶ Quarkus ──getObject──▶ RustFS ──▶ imagen
+```
+
+- El bucket `posts-media` se crea automáticamente al arrancar el backend si no existe.
+- Si el autor no existe y la publicación no se puede crear, el backend borra la imagen ya subida para no dejar archivos huérfanos.
+
+---
+
+## 19. Flujo de trabajo en Git
 
 ```powershell
 git checkout main
@@ -346,7 +736,7 @@ Luego abrir Pull Request en GitHub.
 
 ---
 
-## 15. Solución de problemas
+## 20. Solución de problemas
 
 | Problema | Solución |
 |---|---|
@@ -360,12 +750,30 @@ Para más detalles sobre Docker, ver [README-DOCKER.md](README-DOCKER.md).
 
 ---
 
-## 16. Decisiones técnicas
+## 21. Decisiones técnicas
 
-- **REST para CRUD y consultas** - Petición-respuesta sin estado, ideal para React
-- **Neo4j para relaciones sociales** - Recorridos de grafo más eficientes que JOIN encadenados
-- **JWT firmado con RSA** - Stateless, el token lleva el id del usuario
-- **Bcrypt para contraseñas** - Solo se guarda el hash, empieza con `$2a$`
-- **RustFS en lugar de MinIO** - MinIO fue archivado en 2026, RustFS es compatible S3
-- **Web Push con VAPID** - Notificaciones funcionan con la app cerrada
-- **Docker Compose** - Entorno reproducible sin instalar dependencias
+Cada decisión responde a qué problema resuelve el componente y por qué se eligió.
+
+| Decisión | Problema que resuelve | Por qué |
+|---|---|---|
+| **REST para CRUD y consultas** | Operaciones puntuales del usuario | Petición-respuesta sin estado; fácil de paginar y cachear; ideal para React |
+| **Neo4j para el modelo social** | Seguir, sugerir y construir el feed | Recorrer relaciones (`SIGUE`, `PUBLICA`) es natural y eficiente; con JOIN encadenados sería costoso y poco legible |
+| **Sugerencias por amigos de amigos** | Recomendar sin aleatoriedad | Se usa la estructura del grafo y se explica la recomendación (`via`) |
+| **WebSocket para el chat** | Entregar mensajes al instante | El servidor empuja el mensaje por una conexión persistente; el polling con REST estaba prohibido y es ineficiente |
+| **Mensajes guardados en Neo4j** | Historial del chat | El historial sobrevive a las desconexiones y se lee por REST |
+| **Web Push con VAPID + Service Worker** | Avisar con la aplicación cerrada | Un WebSocket o una alerta de React solo funcionan con la página abierta |
+| **Evento CDI asíncrono para notificar** | No retrasar la publicación | Crear el post no espera a que se envíen las notificaciones |
+| **Object Storage S3 para imágenes** | Guardar archivos | Neo4j conserva solo la clave; los binarios viven en almacenamiento de objetos |
+| **Las imágenes se sirven por el backend (`/media`)** | Mostrar imágenes sin exponer el almacenamiento | S3 no queda abierto al navegador; las claves son UUID y se valida su formato |
+| **RustFS en lugar de MinIO** | Servicio compatible con S3 | MinIO fue archivado en 2026; RustFS es compatible con la API S3 |
+| **JWT firmado con RSA** | Autenticación sin sesiones en el servidor | Stateless: el token lleva el id del usuario y caduca a las 8 horas |
+| **Bcrypt para contraseñas** | Proteger credenciales | Solo se guarda el hash (empieza con `$2a$`) |
+| **Docker Compose** | Despliegue reproducible | Un solo comando levanta Neo4j, S3, backend y frontend; las llaves JWT se generan solas |
+
+### Limitaciones conocidas
+
+- El registro de conexiones WebSocket vive **en la memoria** de una instancia del backend. Con varias instancias haría falta un intermediario de mensajes (por ejemplo Redis o un broker) para repartir mensajes entre ellas.
+- El JWT viaja en la URL del WebSocket porque el navegador no permite cabeceras personalizadas al abrir la conexión.
+- El feed muestra solo publicaciones de los usuarios seguidos (no las propias) y un usuario sin seguidos no recibe sugerencias.
+- `/social/grafo` devuelve el grafo completo a cualquier usuario autenticado, lo cual sirve para la demostración pero no sería adecuado con muchos usuarios.
+- El alcance de `/social/alcanzables` está fijado en 3 saltos.

@@ -5,7 +5,7 @@ import { useAuth } from '../auth/AuthContext';
 import { activarNotificaciones } from '../push';
 import { Avatar } from './Avatar';
 import { useTema } from '../hooks/useTema';
-import { api } from '../api/client';
+import { api , WS_URL} from '../api/client';
 import '../styles/shell.css';
 
 const ICONO = {
@@ -130,7 +130,7 @@ export function BarraNavegacion() {
 
       try {
         ws = new WebSocket(
-          `ws://localhost:8080/ws/chat?token=${encodeURIComponent(token)}`
+          `${WS_URL}/ws/chat?token=${encodeURIComponent(token)}`
         );
       } catch (err) {
         console.error('Error creando WebSocket de navegación:', err);
