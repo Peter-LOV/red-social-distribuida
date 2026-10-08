@@ -75,7 +75,7 @@ export function Feed() {
     <main className="rs-contenedor rs-ancho">
       <div className="rs-saludo">
         <h1>Hola, <span>{usuario?.nombre?.split(' ')[0]}</span></h1>
-        <p>Esto es lo que comparten las personas que sigues.</p>
+        <p>Esto es lo que comparten las personas que sigues. Tus propias publicaciones están en tu perfil.</p>
       </div>
       <div className="rs-feed-grid">
       <PerfilLateral />

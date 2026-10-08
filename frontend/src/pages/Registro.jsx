@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { AuthShell } from '../components/AuthShell';
 import { Campo } from '../components/Campo';
+import { mensajeAmigable } from '../services/posts';
 
 export function Registro() {
   const [nombre, setNombre] = useState('');
@@ -23,7 +24,7 @@ export function Registro() {
       await registro(nombre, email, password);
       navigate('/');
     } catch (err) {
-      setError(err instanceof TypeError ? 'No pudimos conectar con el servidor. Intenta nuevamente.' : err.message);
+      setError(mensajeAmigable(err, 'No pudimos crear la cuenta. Intenta nuevamente.'));
     } finally {
       setCargando(false);
     }

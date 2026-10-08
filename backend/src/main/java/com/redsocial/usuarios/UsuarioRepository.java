@@ -1,5 +1,6 @@
 package com.redsocial.usuarios;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -63,6 +64,25 @@ public class UsuarioRepository {
                 }
                 return Optional.of(aUsuario(res.next()));
             });
+        }
+    }
+
+    /** Usuarios cuyo nombre contiene el texto (sin distinguir mayusculas), excluyendome a mi. */
+    public List<UsuarioEncontrado> buscarPorNombre(String yo, String texto) {
+        try (Session session = driver.session()) {
+            return session.executeRead(tx -> tx.run("""
+                    MATCH (u:Usuario)
+                    WHERE u.id <> $yo AND toLower(u.nombre) CONTAINS toLower($texto)
+                    RETURN u.id AS id, u.nombre AS nombre, u.bio AS bio,
+                           EXISTS { (:Usuario {id: $yo})-[:SIGUE]->(u) } AS sigo
+                    ORDER BY u.nombre, u.id
+                    LIMIT 20
+                    """, Map.of("yo", yo, "texto", texto))
+                    .list(r -> new UsuarioEncontrado(
+                            r.get("id").asString(),
+                            r.get("nombre").asString(),
+                            r.get("bio").asString(""),
+                            r.get("sigo").asBoolean())));
         }
     }
 

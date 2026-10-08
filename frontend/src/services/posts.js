@@ -10,6 +10,9 @@ export const obtenerFeed = (pagina = 0) => api(`/feed?pagina=${pagina}`);
 
 export const obtenerPost = (id) => api(`/posts/${id}`);
 
+export const obtenerPostsDeAutor = (autorId, pagina = 0) =>
+  api(`/posts?autor=${encodeURIComponent(autorId)}&pagina=${pagina}`);
+
 export function crearPost(texto, imagen) {
   const formData = new FormData();
   formData.append('texto', texto);

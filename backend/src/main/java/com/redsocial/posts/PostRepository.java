@@ -86,6 +86,26 @@ public class PostRepository {
         }
     }
 
+    /** Publicaciones de un autor; "yo" solo se usa para saber si ya reaccione a cada una. */
+    public List<Post> deAutor(String autorId, String yo, int pagina) {
+        try (Session session = driver.session()) {
+            return session.executeRead(tx -> tx.run("""
+                    MATCH (autor:Usuario {id: $autor})-[:PUBLICA]->(p:Post)
+                    OPTIONAL MATCH (:Usuario)-[r:REACCIONA]->(p)
+                    WITH p, autor, count(r) AS reacciones
+                    OPTIONAL MATCH (:Usuario {id: $yo})-[mia:REACCIONA]->(p)
+                    RETURN p.id AS id, p.texto AS texto, p.mediaKey AS mediaKey,
+                           toString(p.fecha) AS fecha, autor.id AS autorId, autor.nombre AS autorNombre,
+                           reacciones, mia IS NOT NULL AS yaReaccione
+                    ORDER BY p.fecha DESC, p.id
+                    SKIP $saltar LIMIT $limite
+                    """,
+                    Map.of("autor", autorId, "yo", yo,
+                            "saltar", (long) pagina * POR_PAGINA, "limite", (long) POR_PAGINA))
+                    .list(PostRepository::aPost));
+        }
+    }
+
     /** Crea o cambia mi reaccion. Devuelve el total de reacciones, o vacio si el post no existe. */
     public Optional<Long> reaccionar(String yo, String postId, String tipo) {
         try (Session session = driver.session()) {

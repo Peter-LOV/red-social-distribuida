@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useCallback, useContext, useState, useEffect } from 'react';
 import { api } from '../api/client';
 import { desvincularNotificaciones, sincronizarNotificaciones } from '../push';
 
@@ -7,23 +7,32 @@ const AuthContext = createContext(null);
 export function AuthProvider({ children }) {
   const [usuario, setUsuario] = useState(null);
   const [cargando, setCargando] = useState(true);
+  // true = hay sesión guardada pero el servidor no respondió al comprobarla
+  const [sinConexion, setSinConexion] = useState(false);
+
+  const cargarSesion = useCallback(() => {
+    if (!localStorage.getItem('token')) {
+      setCargando(false);
+      return;
+    }
+    setCargando(true);
+    api('/usuarios/me')
+      .then((u) => {
+        setUsuario(u);
+        setSinConexion(false);
+        sincronizarNotificaciones();
+      })
+      .catch(() => {
+        // Con token inválido (401) api() ya lo borró y redirige al login.
+        // Si el token sigue ahí, el fallo es del servidor o de la red: la sesión se conserva.
+        setSinConexion(Boolean(localStorage.getItem('token')));
+      })
+      .finally(() => setCargando(false));
+  }, []);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      api('/usuarios/me')
-        .then((u) => {
-          setUsuario(u);
-          sincronizarNotificaciones();
-        })
-        .catch(() => {
-          localStorage.removeItem('token');
-        })
-        .finally(() => setCargando(false));
-    } else {
-      setCargando(false);
-    }
-  }, []);
+    cargarSesion();
+  }, [cargarSesion]);
 
   const login = async (email, password) => {
     const data = await api('/auth/login', {
@@ -44,6 +53,7 @@ export function AuthProvider({ children }) {
     });
     localStorage.setItem('token', data.token);
     setUsuario(data.usuario);
+    sincronizarNotificaciones();
     return data;
   };
 
@@ -55,7 +65,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ usuario, login, registro, logout, cargando }}>
+    <AuthContext.Provider value={{ usuario, login, registro, logout, cargando, sinConexion, reintentar: cargarSesion }}>
       {children}
     </AuthContext.Provider>
   );

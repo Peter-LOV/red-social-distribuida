@@ -97,7 +97,7 @@ public class GrafoRepository {
                     WHERE c <> yo AND NOT (yo)-[:SIGUE]->(c)
                     RETURN c.id AS id, c.nombre AS nombre,
                            COUNT { (c)<-[:SIGUE]-() } AS popularidad
-                    ORDER BY popularidad DESC, nombre
+                    ORDER BY popularidad DESC, nombre, id
                     LIMIT 10
                     """, Map.of("id", yo)).list(r -> new Sugerencia(
                     r.get("id").asString(),
@@ -118,7 +118,7 @@ public class GrafoRepository {
                            size(mediadores) AS enComun,
                            mediadores[0..3] AS via,
                            COUNT { (c)<-[:SIGUE]-() } AS popularidad
-                    ORDER BY enComun DESC, popularidad DESC, nombre
+                    ORDER BY enComun DESC, popularidad DESC, nombre, id
                     LIMIT 10
                     """, Map.of("id", yo)).list(r -> new Sugerencia(
                     r.get("id").asString(),

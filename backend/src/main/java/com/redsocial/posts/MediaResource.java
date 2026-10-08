@@ -28,9 +28,13 @@ public class MediaResource {
             var objeto = almacenamiento.obtener(clave);
             CacheControl cache = new CacheControl();
             cache.setMaxAge(86400);
-            return Response.ok(objeto).type(objeto.response().contentType()).cacheControl(cache).build();
+            return Response.ok(objeto).type(objeto.response().contentType()).cacheControl(cache)
+                    .header("X-Content-Type-Options", "nosniff").build();
         } catch (NoSuchKeyException e) {
             return Response.status(404).build();
+        } catch (Exception e) {
+            // El almacenamiento no responde: es un fallo temporal, no un error del cliente
+            return Response.status(503).build();
         }
     }
 }

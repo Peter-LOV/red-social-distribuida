@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { AuthShell } from '../components/AuthShell';
 import { Campo } from '../components/Campo';
+import { mensajeAmigable } from '../services/posts';
 
 export function Login() {
   const [email, setEmail] = useState('');
@@ -21,7 +22,7 @@ export function Login() {
       await login(email, password);
       navigate('/');
     } catch (err) {
-      setError(err instanceof TypeError ? 'No pudimos conectar con el servidor. Intenta nuevamente.' : err.message);
+      setError(mensajeAmigable(err, 'No pudimos iniciar sesión. Intenta nuevamente.'));
     } finally {
       setCargando(false);
     }

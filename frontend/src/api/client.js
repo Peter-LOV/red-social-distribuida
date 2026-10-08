@@ -24,7 +24,8 @@ export async function api(ruta, { metodo = 'GET', cuerpo, formData } = {}) {
   }
   if (!res.ok) {
     const datos = await res.json().catch(() => ({}));
-    throw new Error(datos.error ?? `Error ${res.status}`);
+    // El backend responde {error: "..."}; los fallos de validación llegan como {violations: [{message}]}
+    throw new Error(datos.error ?? datos.violations?.[0]?.message ?? `Error ${res.status}`);
   }
   return res.status === 204 ? null : res.json();
 }

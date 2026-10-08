@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { api, WS_URL } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
@@ -349,8 +349,8 @@ export function Chat() {
     setCargandoContactos(true);
     try {
       const [segdores, segdos] = await Promise.all([
-        api(`/social/seguidores/${miId}`).catch(() => api(`/usuarios/${miId}/seguidores`).catch(() => [])),
-        api(`/social/seguidos/${miId}`).catch(() => api(`/usuarios/${miId}/seguidos`).catch(() => [])),
+        api(`/social/seguidores/${miId}`).catch(() => []),
+        api(`/social/seguidos/${miId}`).catch(() => []),
       ]);
 
       setSeguidores(Array.isArray(segdores) ? segdores : []);
@@ -424,7 +424,10 @@ export function Chat() {
                 return (
                   <div
                     key={conv.id}
+                    role="button"
+                    tabIndex={0}
                     onClick={() => seleccionarConversacion(conv)}
+                    onKeyDown={(e) => e.key === 'Enter' && seleccionarConversacion(conv)}
                     className={`chat-conv-item ${activa ? 'active' : ''} ${conv.noLeido ? 'unopened' : ''}`}
                   >
                     <div className="chat-avatar">
@@ -503,7 +506,10 @@ export function Chat() {
                   <div
                     key={contacto.id}
                     className="perfil-user-card"
+                    role="button"
+                    tabIndex={0}
                     onClick={() => prepararChatConUsuario(contacto)}
+                    onKeyDown={(e) => e.key === 'Enter' && prepararChatConUsuario(contacto)}
                   >
                     <div className="perfil-user-avatar">
                       {contacto.nombre ? contacto.nombre.charAt(0).toUpperCase() : '?'}
@@ -590,9 +596,11 @@ export function Chat() {
                     <div className={`chat-message-bubble ${esMio ? 'mio' : 'otro'}`}>
                       <div className="chat-message-text">{m.texto}</div>
                       <div className="chat-message-time">
-                        {m.fecha
-                          ? new Date(m.fecha).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                          : ''}
+                        {m.tempId
+                          ? 'enviando…'
+                          : m.fecha
+                            ? new Date(m.fecha).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                            : ''}
                       </div>
                     </div>
                   </div>
@@ -610,6 +618,8 @@ export function Chat() {
             <form onSubmit={manejarEnvio} className="chat-input-area">
               <input
                 type="text"
+                maxLength={2000}
+                aria-label={`Mensaje para ${usuarioEnPantalla}`}
                 placeholder={`Escribe un mensaje a ${usuarioEnPantalla}...`}
                 value={nuevoMensaje}
                 onChange={(e) => setNuevoMensaje(e.target.value)}
